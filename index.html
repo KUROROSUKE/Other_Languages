@@ -36,8 +36,8 @@
 
     #previewContainer {
       position: absolute;
-      top: 20px;
-      left: 20px;
+      top: 5px;
+      left: 5px;
       border: 2px solid #888;
       box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
       cursor: pointer;
@@ -63,7 +63,7 @@
   <div id="mainContainer">
     <canvas id="mainCanvas"></canvas>
     <div id="previewContainer" title="クリックでページ入れ替え">
-      <canvas id="previewCanvas"></canvas>
+      <canvas id="previewCanvas" style="width:5%;height:auto;"></canvas>
     </div>
   </div>
 
@@ -71,11 +71,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <script>
-    const langSelect = document.getElementById("langSelect");
-    const mainCanvas = document.getElementById("mainCanvas");
+    const langSelect    = document.getElementById("langSelect");
+    const mainCanvas    = document.getElementById("mainCanvas");
     const previewCanvas = document.getElementById("previewCanvas");
-    const mainCtx = mainCanvas.getContext("2d");
-    const previewCtx = previewCanvas.getContext("2d");
+    const mainCtx       = mainCanvas.getContext("2d");
+    const previewCtx    = previewCanvas.getContext("2d");
 
     const langToPDF = {
       ja: "pdf/ja.pdf",
