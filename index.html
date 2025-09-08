@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Multilang Brochure</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    .lang-selector {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+    iframe {
+      display: block;
+      margin: 60px auto 0;
+      width: 90%;
+      height: 90vh;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="lang-selector">
+    <select id="langSelect">
+      <option value="ja" selected>日本語</option>
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+    </select>
+  </div>
+
+  <iframe id="pdfFrame" src="pdf/ja.pdf#toolbar=0"></iframe>
+
+  <script>
+    const langSelect = document.getElementById("langSelect");
+    const pdfFrame = document.getElementById("pdfFrame");
+
+    const langToPDF = {
+      ja: "pdf/ja.pdf",
+      en: "pdf/en.pdf",
+      fr: "pdf/fr.pdf"
+    };
+
+    // 言語切り替え時にPDF変更
+    langSelect.addEventListener("change", function() {
+      const lang = langSelect.value;
+      pdfFrame.src = `${langToPDF[lang]}#toolbar=0`;
+    });
+
+    // URLパラメータで言語指定（例: ?lang=en）
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLang = urlParams.get('lang');
+    if (urlLang && langToPDF[urlLang]) {
+      langSelect.value = urlLang;
+      pdfFrame.src = `${langToPDF[urlLang]}#toolbar=0`;
+    }
+  </script>
+
+</body>
+</html>
