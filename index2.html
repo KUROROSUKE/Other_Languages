@@ -88,6 +88,7 @@
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         const pdfPath = "pdf/"; // Base path for PDFs
         let currentLanguage = "jp"; // Default language
+        let currentPage = 1; // Keep track of the current page in the main display
         let pdfCache = {}; // Cache to store loaded PDFs for faster access
         const A4_RATIO = { width: 595, height: 842 }; // A4 in px (595px x 842px)
 
@@ -149,9 +150,12 @@
 
         // Function to handle preview click (switch pages)
         document.getElementById('pdf-preview').addEventListener('click', async () => {
-            const nextPage = currentLanguage === 1 ? 2 : 1;
-            await renderPDF(currentLanguage, nextPage); // Update main display
-            await renderPDF(currentLanguage, nextPage === 1 ? 2 : 1, true); // Update preview
+            // Toggle between page 1 and page 2
+            currentPage = currentPage === 1 ? 2 : 1;
+
+            // Update main display and preview
+            await renderPDF(currentLanguage, currentPage);
+            await renderPDF(currentLanguage, currentPage === 1 ? 2 : 1, true); // Update preview
         });
 
         // Initialize the viewer when the page loads
