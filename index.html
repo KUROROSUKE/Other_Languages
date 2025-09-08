@@ -26,8 +26,6 @@
             height: 80%;
         }
         #pdf-preview {
-            width: 200px;
-            height: 280px;
             position: absolute;
             top: 20px;
             left: 20px;
@@ -37,10 +35,12 @@
             align-items: center;
             background-color: #fff;
             cursor: pointer;
+            max-width: 200px; /* Adjust this value to fit your design */
+            max-height: 280px; /* Adjust this value to fit your design */
         }
         #pdf-preview canvas {
-            max-width: 100%;
-            max-height: 100%;
+            width: 100%;
+            height: auto;
         }
         #pdf-main {
             display: flex;
@@ -50,7 +50,7 @@
             height: 100%;
         }
         #pdf-main canvas {
-            max-width: 100%;
+            width: 100%;
             height: auto;
         }
         #language-select {
@@ -91,6 +91,8 @@
         let currentLanguage = "jp"; // Default language
         let currentPage = 1; // Keep track of the current page in the main display
 
+        const A4_RATIO = { width: 595, height: 842 }; // A4 in px (595px x 842px)
+
         // Function to render a PDF document
         async function renderPDF(language, pageNumber = 1, preview = false) {
             const url = `${pdfPath}${language}.pdf`;
@@ -128,6 +130,12 @@
             const previewCanvas = document.createElement('canvas');
             previewCanvas.id = 'pdf-preview-canvas';
             document.getElementById('pdf-preview').appendChild(previewCanvas);
+
+            // Apply the aspect ratio to the preview canvas
+            const previewCanvas = document.getElementById('pdf-preview-canvas');
+            const previewScale = 0.2; // Desired preview scale
+            previewCanvas.width = A4_RATIO.width * previewScale;
+            previewCanvas.height = A4_RATIO.height * previewScale;
 
             // Render the first page for the initial language
             await renderPDF(currentLanguage, 1); // Main display
