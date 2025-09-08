@@ -36,6 +36,7 @@
             justify-content: center;
             align-items: center;
             background-color: #fff;
+            cursor: pointer;
         }
         #pdf-preview canvas {
             max-width: 100%;
@@ -88,6 +89,7 @@
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         const pdfPath = "pdf/"; // Base path for PDFs
         let currentLanguage = "jp"; // Default language
+        let currentPage = 1; // Keep track of the current page in the main display
 
         // Function to render a PDF document
         async function renderPDF(language, pageNumber = 1, preview = false) {
@@ -113,6 +115,10 @@
 
         // Function to initialize the viewer
         async function initializeViewer() {
+            // Remove existing canvases if they exist
+            document.getElementById('pdf-main').innerHTML = '';
+            document.getElementById('pdf-preview').innerHTML = '';
+
             // Main canvas
             const mainCanvas = document.createElement('canvas');
             mainCanvas.id = 'pdf-main-canvas';
@@ -123,7 +129,7 @@
             previewCanvas.id = 'pdf-preview-canvas';
             document.getElementById('pdf-preview').appendChild(previewCanvas);
 
-            // Render both pages for the initial language
+            // Render the first page for the initial language
             await renderPDF(currentLanguage, 1); // Main display
             await renderPDF(currentLanguage, 2, true); // Preview
         }
@@ -132,6 +138,13 @@
         document.getElementById('language-dropdown').addEventListener('change', async (event) => {
             currentLanguage = event.target.value;
             await initializeViewer();
+        });
+
+        // Function to handle preview click (switch pages)
+        document.getElementById('pdf-preview').addEventListener('click', async () => {
+            currentPage = currentPage === 1 ? 2 : 1; // Toggle between page 1 and 2
+            await renderPDF(currentLanguage, currentPage); // Update main display
+            await renderPDF(currentLanguage, currentPage === 1 ? 2 : 1, true); // Update preview
         });
 
         // Initialize the viewer when the page loads
