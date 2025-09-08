@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            justify-content: center;
+            background-color: #f0f0f0;
+        }
+        #viewer-container {
+            display: flex;
+            position: relative;
+            justify-content: center;
+            align-items: center;
+            width: 80%;
+            height: 80%;
+        }
+        #pdf-preview {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            border: 2px solid #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fff;
+            cursor: pointer;
+            max-width: 150px;
+            max-height: 210px;
+        }
+        #pdf-preview canvas {
+            width: 100%;
+            height: auto;
+        }
+        #pdf-main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 80%;
+            height: 100%;
+        }
+        #pdf-main canvas {
+            width: 100%;
+            height: auto;
+        }
+        #language-select {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="language-select">
+        <select id="language-dropdown">
+            <option value="jp">日本語</option>
+            <option value="de">ドイツ語</option>
+            <option value="en">英語</option>
+        </select>
+    </div>
+
+    <div id="viewer-container">
+        <div id="pdf-main">
+            <!-- Main PDF display will go here -->
+        </div>
+
+        <div id="pdf-preview">
+            <!-- Preview PDF display will go here -->
+        </div>
+    </div>
+
+    <script>
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        const pdfPath = "pdf/"; // Base path for PDFs
+        let currentLanguage = "jp"; // Default language
+        let pdfCache = {}; // Cache to store loaded PDFs for faster access
+        const A4_RATIO = { width: 595, height: 842 }; // A4 in px (595px x 842px)
+
+        // Function to render a PDF document
+        async function renderPDF(language, pageNumber = 1, preview = false) {
+            const cacheKey = `${language}-${pageNumber}`;
+            const url = `${pdfPath}${language}.pdf`;
+
+            if (!pdfCache[url]) {
+                console.log(`Loading new PDF: ${url}`);
+                pdfCache[url] = await pdfjsLib.getDocument(url).promise;
+            }
+
+            const pdf = pdfCache[url];
+            const page = await pdf.getPage(pageNumber);
+            const scale = preview ? 0.2 : 1; // Scale down for preview
+            const viewport = page.getViewport({ scale: scale });
+
+            const canvas = preview ? document.getElementById('pdf-preview-canvas') : document.getElementById('pdf-main-canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+        }
+
+        // Function to initialize the viewer
+        async function initializeViewer() {
+            // Remove existing canvases if they exist
+            const mainCanvas = document.createElement('canvas');
+            mainCanvas.id = 'pdf-main-canvas';
+            document.getElementById('pdf-main').innerHTML = '';
+            document.getElementById('pdf-main').appendChild(mainCanvas);
+
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.id = 'pdf-preview-canvas';
+            document.getElementById('pdf-preview').innerHTML = '';
+            document.getElementById('pdf-preview').appendChild(previewCanvas);
+
+            // Apply the aspect ratio to the preview canvas
+            const previewScale = 0.2; // Desired preview scale
+            previewCanvas.width = A4_RATIO.width * previewScale;
+            previewCanvas.height = A4_RATIO.height * previewScale;
+
+            // Render the first page for the initial language
+            await renderPDF(currentLanguage, 1); // Main display
+            await renderPDF(currentLanguage, 2, true); // Preview
+        }
+
+        // Event listener for language change
+        document.getElementById('language-dropdown').addEventListener('change', async (event) => {
+            currentLanguage = event.target.value;
+            await initializeViewer();
+        });
+
+        // Function to handle preview click (switch pages)
+        document.getElementById('pdf-preview').addEventListener('click', async () => {
+            const nextPage = currentLanguage === 1 ? 2 : 1;
+            await renderPDF(currentLanguage, nextPage); // Update main display
+            await renderPDF(currentLanguage, nextPage === 1 ? 2 : 1, true); // Update preview
+        });
+
+        // Initialize the viewer when the page loads
+        window.onload = initializeViewer;
+    </script>
+</body>
+</html>
