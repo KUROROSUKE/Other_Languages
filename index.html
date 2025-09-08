@@ -1,48 +1,162 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"> <!-- 選択に応じて動的変更 -->
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>多言語版のプレビュー</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Multi-language PDF Preview</title>
   <style>
-    #preview {
-      width: 100%;
-      height: 600px;
-      margin-top: 20px;
-      border: 1px solid #ccc;
-    }
+    :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; --primary-2:#2a7bd1; }
+    *{box-sizing:border-box}
+    body{ margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
+      background:var(--bg); color:var(--text); display:flex; flex-direction:column; height:100vh; }
+    header{ padding:10px 16px; background:var(--panel); display:flex; gap:10px; align-items:center; border-bottom:1px solid #1b2a3f; }
+    label{ font-size:14px; color:var(--muted) }
+    select{ appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:var(--text); font-size:14px; padding:6px 10px; min-width:180px; }
+    button{ appearance:none; border:none; cursor:pointer; padding:7px 14px; border-radius:8px; font-weight:600; font-size:14px; background:var(--primary); color:#07131f; transition:.15s background; }
+    button:hover{ background:var(--primary-2); }
+    .status{ margin-left:auto; font-size:13px; color:var(--muted) }
+    main{ flex:1; display:flex; flex-direction:column }
+    iframe{ flex:1; width:100%; border:0; background:#0b111a }
+    .error{ display:none; color:#ffd1d1; background:#471c1c; border:1px solid #7a2b2b; padding:8px 10px; font-size:13px }
   </style>
 </head>
 <body>
+  <header>
+    <label id="label-lang" for="lang_selection">Language</label>
+    <select id="lang_selection">
+      <option value="en" selected>🇺🇸 English</option>
+      <option value="ja">🇯🇵 日本語</option>
+      <option value="de">🇩🇪 Deutsch</option>
+      <option value="fr">🇫🇷 Français</option>
+      <option value="es">🇪🇸 Español</option>
+      <option value="pt">🇵🇹 Português</option>
+      <option value="it">🇮🇹 Italiano</option>
+      <option value="ru">🇷🇺 Русский</option>
+      <option value="ar">🇸🇦 العربية</option>
+      <option value="hi">🇮🇳 हिन्दी</option>
+      <option value="zh-CN">🇨🇳 简体中文</option>
+      <option value="zh-TW">🇹🇼 繁體中文</option>
+      <option value="ko">🇰🇷 한국어</option>
+    </select>
+    <button id="preview-btn">Preview</button>
+    <div id="statusText" class="status">No file loaded</div>
+  </header>
 
-  <select id="lang_selection">
-    <option value="en" selected>English</option>
-    <option value="ja">日本語</option>
-    <option value="de">Deutsch</option>
-    <option value="fr">Français</option>
-    <option value="es">Español</option>
-    <option value="pt">Português</option>
-    <option value="it">Italiano</option>
-    <option value="ru">Русский</option>
-    <option value="ar">العربية</option>
-    <option value="hi">हिन्दी</option>
-    <option value="zh-CN">简体中文</option>
-    <option value="zh-TW">繁體中文</option>
-    <option value="ko">한국어</option>
-  </select>
-
-  <button id="preview-btn">プレビュー表示</button>
-
-  <!-- プレビュー領域 -->
-  <iframe id="preview"></iframe>
+  <main>
+    <iframe id="preview" title="PDF Preview"></iframe>
+    <div id="errorBox" class="error">Load failed. Check URL or file existence.</div>
+  </main>
 
   <script>
-    document.getElementById('preview-btn').addEventListener('click', function() {
-      const language = document.getElementById("lang_selection").value;
-      const fileUrl = `https://kurorosuke.github.io/Other_Languages/pdf/${language}.pdf`;
-      document.getElementById("preview").src = fileUrl;
-    });
-  </script>
+    const SELECT_ID = "lang_selection";
+    const PREVIEW_ID = "preview";
+    const STATUS_ID = "statusText";
+    const ERROR_ID = "errorBox";
+    const LABEL_LANG_ID = "label-lang";
+    const PREVIEW_BTN_ID = "preview-btn";
+    const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf";
 
+    const I18N = {
+      "en": { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l)=>`Showing: ${l}.pdf`, fail:"Load failed. Check URL or file existence.", title:"PDF Preview" },
+      "ja": { lang:"言語", preview:"プレビュー", idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l)=>`表示中: ${l}.pdf`, fail:"読み込みに失敗しました。URL を確認してください。", title:"PDF プレビュー" },
+      "de": { lang:"Sprache", preview:"Vorschau", idle:"Keine Datei geladen", loading:"Laden…", showing:(l)=>`Wird angezeigt: ${l}.pdf`, fail:"Laden fehlgeschlagen. URL prüfen.", title:"PDF-Vorschau" },
+      "fr": { lang:"Langue", preview:"Aperçu", idle:"Aucun fichier chargé", loading:"Chargement…", showing:(l)=>`Affichage : ${l}.pdf`, fail:"Échec du chargement. Vérifiez l’URL.", title:"Aperçu PDF" },
+      "es": { lang:"Idioma", preview:"Vista previa", idle:"Ningún archivo cargado", loading:"Cargando…", showing:(l)=>`Mostrando: ${l}.pdf`, fail:"Error de carga. Verifique la URL.", title:"Vista previa de PDF" },
+      "pt": { lang:"Idioma", preview:"Prévia", idle:"Nenhum arquivo carregado", loading:"Carregando…", showing:(l)=>`Exibindo: ${l}.pdf`, fail:"Falha ao carregar. Verifique a URL.", title:"Pré-visualização de PDF" },
+      "it": { lang:"Lingua", preview:"Anteprima", idle:"Nessun file caricato", loading:"Caricamento…", showing:(l)=>`In visualizzazione: ${l}.pdf`, fail:"Caricamento non riuscito. Verifica l’URL.", title:"Anteprima PDF" },
+      "ru": { lang:"Язык", preview:"Предпросмотр", idle:"Файл не загружен", loading:"Загрузка…", showing:(l)=>`Отображается: ${l}.pdf`, fail:"Не удалось загрузить. Проверьте URL.", title:"Предпросмотр PDF" },
+      "ar": { lang:"اللغة", preview:"معاينة", idle:"لا ملف محمّل", loading:"جارٍ التحميل…", showing:(l)=>`يُعرض: ‎${l}.pdf`, fail:"فشل التحميل. تحقق من الرابط.", title:"معاينة PDF" },
+      "hi": { lang:"भाषा", preview:"पूर्वावलोकन", idle:"कोई फ़ाइल लोड नहीं", loading:"लोड हो रहा है…", showing:(l)=>`दिखा रहा है: ${l}.pdf`, fail:"लोड विफल। URL जाँचें.", title:"PDF पूर्वावलोकन" },
+      "zh-CN": { lang:"语言", preview:"预览", idle:"未加载文件", loading:"正在加载…", showing:(l)=>`正在显示：${l}.pdf`, fail:"加载失败。请检查链接。", title:"PDF 预览" },
+      "zh-TW": { lang:"語言", preview:"預覽", idle:"未載入檔案", loading:"載入中…", showing:(l)=>`顯示中：${l}.pdf`, fail:"載入失敗。請檢查連結。", title:"PDF 預覽" },
+      "ko": { lang:"언어", preview:"미리보기", idle:"파일 미로드", loading:"불러오는 중…", showing:(l)=>`표시 중: ${l}.pdf`, fail:"로드 실패. URL 확인.", title:"PDF 미리보기" },
+    };
+
+    document.getElementById(PREVIEW_BTN_ID).addEventListener("click", handlePreview);
+    document.getElementById(SELECT_ID).addEventListener("change", handleLangChange);
+    document.addEventListener("keydown", (e)=>{ if(e.key==="Enter") handlePreview(); });
+
+    initUI(); // 初期化
+
+    // ===== functions =====
+    function initUI(){
+      applyI18n(getSelectedLang());
+      setStatus(getMsg("idle"));
+      setPreviewTitle();
+      setHtmlLang(getSelectedLang());
+    }
+
+    function getSelectedLang(){
+      return document.getElementById(SELECT_ID).value;
+    }
+
+    function buildUrl(lang){
+      return `${BASE_URL}/${lang}.pdf`;
+    }
+
+    async function handlePreview(){
+      clearError();
+      const lang = getSelectedLang();
+      const url = buildUrl(lang);
+      setStatus(getMsg("loading"));
+      try{
+        const ok = await headOk(url);
+        if(!ok) throw new Error("not found");
+        document.getElementById(PREVIEW_ID).src = url;
+        setStatus(getMsg("showing")(lang));
+      }catch{
+        setStatus(getMsg("fail"));
+        showError(getMsg("fail"));
+      }
+    }
+
+    function handleLangChange(){
+      const lang = getSelectedLang();
+      applyI18n(lang);
+      setHtmlLang(lang);
+      setStatus(getMsg("idle"));
+    }
+
+    function applyI18n(lang){
+      const t = I18N[lang] || I18N.en;
+      document.getElementById(LABEL_LANG_ID).textContent = t.lang;
+      document.getElementById(PREVIEW_BTN_ID).textContent = t.preview;
+      setPreviewTitle();
+    }
+
+    function getMsg(key){
+      const lang = getSelectedLang();
+      return (I18N[lang] || I18N.en)[key] || I18N.en[key];
+    }
+
+    function setPreviewTitle(){
+      document.getElementById(PREVIEW_ID).title = getMsg("title");
+    }
+
+    function setStatus(text){
+      document.getElementById(STATUS_ID).textContent = text;
+    }
+
+    function showError(msg){
+      const el = document.getElementById(ERROR_ID);
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function clearError(){
+      document.getElementById(ERROR_ID).style.display = "none";
+    }
+
+    async function headOk(url){
+      try{ const res = await fetch(url, { method:"HEAD" }); return res.ok; }
+      catch{ return false; }
+    }
+
+    function setHtmlLang(lang){
+      // 方向は固定 LTR（要望により反転しない）
+      document.documentElement.lang = lang;
+      document.documentElement.dir = "ltr";
+    }
+  </script>
 </body>
 </html>
