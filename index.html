@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>多言語版のダウンロード</title>
+  <title>多言語版のプレビュー</title>
   <style>
     #preview {
       width: 100%;
@@ -31,29 +31,15 @@
     <option value="ko">한국어</option>
   </select>
 
-  <button id="download-btn">ファイルをダウンロードして表示</button>
+  <button id="preview-btn">プレビュー表示</button>
 
-  <!-- PDF プレビュー用 -->
+  <!-- プレビュー領域 -->
   <iframe id="preview"></iframe>
 
   <script>
-    document.getElementById('download-btn').addEventListener('click', function() {
+    document.getElementById('preview-btn').addEventListener('click', function() {
       const language = document.getElementById("lang_selection").value;
       const fileUrl = `https://kurorosuke.github.io/Other_Languages/pdf/${language}.pdf`;
-
-      // ダウンロード用リンクを作成
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.download = `${language}_teramachi.pdf`;
-      document.body.appendChild(link);
-
-      // ダウンロード開始
-      link.click();
-
-      // 作った要素を削除
-      link.remove();
-
-      // プレビューに表示
       document.getElementById("preview").src = fileUrl;
     });
   </script>
