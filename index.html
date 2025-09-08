@@ -48,6 +48,7 @@
             align-items: center;
             width: 80%;
             height: 100%;
+            position: relative;
         }
         #pdf-main canvas {
             width: 100%;
@@ -92,7 +93,7 @@
         let pdfCache = {}; // Cache to store loaded PDFs for faster access
         const A4_RATIO = { width: 595, height: 842 }; // A4 in px (595px x 842px)
 
-        // Function to render a PDF document
+        // Function to render a PDF document with text layer for selection
         async function renderPDF(language, pageNumber = 1, preview = false) {
             const cacheKey = `${language}-${pageNumber}`;
             const url = `${pdfPath}${language}.pdf`;
@@ -113,10 +114,32 @@
             canvas.height = viewport.height;
             canvas.width = viewport.width;
 
+            // Render the page to canvas
             await page.render({
                 canvasContext: context,
                 viewport: viewport
             }).promise;
+
+            // Render the text layer for selection
+            if (!preview) {
+                const textLayerDiv = document.createElement("div");
+                textLayerDiv.setAttribute("id", "text-layer");
+                textLayerDiv.style.position = "absolute";
+                textLayerDiv.style.top = "0";
+                textLayerDiv.style.left = "0";
+                textLayerDiv.style.width = `${canvas.width}px`;
+                textLayerDiv.style.height = `${canvas.height}px`;
+                document.getElementById('pdf-main').appendChild(textLayerDiv);
+
+                await page.getTextContent().then(function(textContent) {
+                    pdfjsLib.renderTextLayer({
+                        textContent: textContent,
+                        container: textLayerDiv,
+                        viewport: viewport,
+                        textDivs: []
+                    });
+                });
+            }
         }
 
         // Function to initialize the viewer
