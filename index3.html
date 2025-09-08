@@ -12,7 +12,7 @@
       <option value="jp" selected>日本語</option>
       <option value="de" selected>Deutsch</option>
       <option value="fr" selected>Français</option>
-      <option value="ch" selected></option>
+      <option value="ch" selected>中国語</option>
       <option value="ko" selected>韓国語</option>
     </selct>
     <button id="download-btn">ファイルをダウンロードして開く</button>
@@ -20,12 +20,12 @@
     <script>
         document.getElementById('download-btn').addEventListener('click', function() {
             // ダウンロードしたいファイルのURL
-            const fileUrl = `https://kurorosuke.github.io/Other_Languages/${language}.pdf`;
+            const fileUrl = `https://kurorosuke.github.io/Other_Languages/pdf/ja.pdf`;
 
             // ダウンロードリンクを作成
             const link = document.createElement('a');
             link.href = fileUrl;
-            link.download = '${language}_teramachi.pdf';  // ダウンロードする際のファイル名
+            link.download = 'ja_teramachi.pdf';  // ダウンロードする際のファイル名
 
             // ダウンロード開始
             link.click();
