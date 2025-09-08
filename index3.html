@@ -1,4 +1,4 @@
-s<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +7,7 @@ s<!DOCTYPE html>
 </head>
 <body>
 
-    <selct>
+    <selct id="lang_selection">
       <option value="en" selected>English</option>
       <option value="jp" selected>日本語</option>
       <option value="de" selected>Deutsch</option>
@@ -19,13 +19,16 @@ s<!DOCTYPE html>
 
     <script>
         document.getElementById('download-btn').addEventListener('click', function() {
+            // 選択中の言語
+            const language = document.getElementById("lang_selection").value
+            
             // ダウンロードしたいファイルのURL
-            const fileUrl = `https://kurorosuke.github.io/Other_Languages/pdf/ja.pdf`;
+            const fileUrl = `https://kurorosuke.github.io/Other_Languages/pdf/${language}.pdf`;
 
             // ダウンロードリンクを作成
             const link = document.createElement('a');
             link.href = fileUrl;
-            link.download = 'ja_teramachi.pdf';  // ダウンロードする際のファイル名
+            link.download = '${language}_teramachi.pdf';  // ダウンロードする際のファイル名
 
             // ダウンロード開始
             link.click();
