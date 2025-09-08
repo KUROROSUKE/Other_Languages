@@ -35,8 +35,8 @@
             align-items: center;
             background-color: #fff;
             cursor: pointer;
-            max-width: 200px; /* Adjust to fit your design */
-            max-height: 280px; /* Adjust to fit your design */
+            max-width: 150px;
+            max-height: 210px;
         }
         #pdf-preview canvas {
             width: 100%;
@@ -85,56 +85,51 @@
     </div>
 
     <script>
-        // PDF.js settings
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         const pdfPath = "pdf/"; // Base path for PDFs
         let currentLanguage = "jp"; // Default language
         let currentPage = 1; // Keep track of the current page in the main display
-
+        let pdfCache = {}; // Cache to store loaded PDFs for faster access
         const A4_RATIO = { width: 595, height: 842 }; // A4 in px (595px x 842px)
 
         // Function to render a PDF document
         async function renderPDF(language, pageNumber = 1, preview = false) {
-            try {
-                const url = `${pdfPath}${language}.pdf`;
-                console.log(`Rendering PDF: ${url}, page: ${pageNumber}`);
-                const pdf = await pdfjsLib.getDocument(url).promise;
-                const page = await pdf.getPage(pageNumber);
+            const cacheKey = `${language}-${pageNumber}`;
+            const url = `${pdfPath}${language}.pdf`;
 
-                const scale = preview ? 0.2 : 1; // Scale down for preview
-                const viewport = page.getViewport({ scale: scale });
-
-                const canvas = preview ? document.getElementById('pdf-preview-canvas') : document.getElementById('pdf-main-canvas');
-                const context = canvas.getContext('2d');
-
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                await page.render({
-                    canvasContext: context,
-                    viewport: viewport
-                }).promise;
-
-                console.log(`Rendered page ${pageNumber} for language: ${language}`);
-            } catch (error) {
-                console.error('Error rendering PDF:', error);
+            if (!pdfCache[url]) {
+                console.log(`Loading new PDF: ${url}`);
+                pdfCache[url] = await pdfjsLib.getDocument(url).promise;
             }
+
+            const pdf = pdfCache[url];
+            const page = await pdf.getPage(pageNumber);
+            const scale = preview ? 0.2 : 1; // Scale down for preview
+            const viewport = page.getViewport({ scale: scale });
+
+            const canvas = preview ? document.getElementById('pdf-preview-canvas') : document.getElementById('pdf-main-canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
         }
 
         // Function to initialize the viewer
         async function initializeViewer() {
             // Remove existing canvases if they exist
-            document.getElementById('pdf-main').innerHTML = '';
-            document.getElementById('pdf-preview').innerHTML = '';
-
-            // Main canvas
             const mainCanvas = document.createElement('canvas');
             mainCanvas.id = 'pdf-main-canvas';
+            document.getElementById('pdf-main').innerHTML = '';
             document.getElementById('pdf-main').appendChild(mainCanvas);
 
-            // Preview canvas
             const previewCanvas = document.createElement('canvas');
             previewCanvas.id = 'pdf-preview-canvas';
+            document.getElementById('pdf-preview').innerHTML = '';
             document.getElementById('pdf-preview').appendChild(previewCanvas);
 
             // Apply the aspect ratio to the preview canvas
@@ -155,8 +150,11 @@
 
         // Function to handle preview click (switch pages)
         document.getElementById('pdf-preview').addEventListener('click', async () => {
-            currentPage = currentPage === 1 ? 2 : 1; // Toggle between page 1 and 2
-            await renderPDF(currentLanguage, currentPage); // Update main display
+            // Toggle between page 1 and page 2
+            currentPage = currentPage === 1 ? 2 : 1;
+
+            // Update main display and preview
+            await renderPDF(currentLanguage, currentPage);
             await renderPDF(currentLanguage, currentPage === 1 ? 2 : 1, true); // Update preview
         });
 
