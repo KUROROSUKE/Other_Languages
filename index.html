@@ -96,7 +96,7 @@
         // Function to render a PDF document
         async function renderPDF(language, pageNumber = 1, preview = false) {
             try {
-                const url = `${pdfPath}${language}.pdf`;
+                const url = `https://kurorosuke.github.io/Other_Languages/${pdfPath}${language}.pdf`;
                 const pdf = await pdfjsLib.getDocument(url).promise;
                 const page = await pdf.getPage(pageNumber);
 
