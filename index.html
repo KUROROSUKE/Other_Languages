@@ -1,173 +1,127 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>多言語版パンフレット</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      overflow: hidden;
-    }
-
-    .lang-selector {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 10;
-    }
-
-    #mainContainer {
-      margin: 80px auto 40px;
-      width: 90%;
-      height: 90vh;
-      position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      border: 1px solid #ccc;
-      background: #f5f5f5;
-    }
-
-    canvas {
-      display: block;
-    }
-
-    #previewContainer {
-      position: absolute;
-      top: 5px;
-      left: 5px;
-      border: 2px solid #888;
-      box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-      cursor: pointer;
-      z-index: 5;
-    }
-
-    #previewCanvas {
-      display: block;
-    }
-
-    .textLayer {
-      position: absolute;
-      top: 0;
-      left: 0;
-      pointer-events: none;
-      z-index: 10;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #viewer-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        #pdf-preview {
+            width: 200px;
+            height: 280px;
+            margin-left: 20px;
+            border: 2px solid #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #pdf-preview canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
+        #pdf-main canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        #language-select {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 
-  <div class="lang-selector">
-    <select id="langSelect">
-      <option value="ja" selected>日本語</option>
-      <option value="en">English</option>
-      <option value="fr">Français</option>
-      <option value="de">Deutsch</option>
-    </select>
-  </div>
-
-  <div id="mainContainer">
-    <canvas id="mainCanvas"></canvas>
-    <div id="previewContainer" title="クリックでページ入れ替え">
-      <canvas id="previewCanvas" style="width: 10%; height: auto;"></canvas>
+    <div id="language-select">
+        <select id="language-dropdown">
+            <option value="jp">日本語</option>
+            <option value="de">ドイツ語</option>
+            <option value="en">英語</option>
+        </select>
     </div>
-  </div>
 
-  <!-- PDF.jsライブラリ -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <div id="viewer-container">
+        <div id="pdf-main">
+            <!-- Main PDF display will go here -->
+        </div>
 
-  <script>
-    const langSelect    = document.getElementById("langSelect");
-    const mainCanvas    = document.getElementById("mainCanvas");
-    const previewCanvas = document.getElementById("previewCanvas");
-    const mainCtx       = mainCanvas.getContext("2d");
-    const previewCtx    = previewCanvas.getContext("2d");
+        <div id="pdf-preview">
+            <!-- Preview PDF display will go here -->
+        </div>
+    </div>
 
-    const langToPDF = {
-      ja: "pdf/ja.pdf",
-      en: "pdf/en.pdf",
-      fr: "pdf/fr.pdf",
-      de: "pdf/de.pdf"
-    };
+    <script>
+        // PDF.js settings
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        const pdfPath = "pdf/"; // Base path for PDFs
+        let currentLanguage = "jp"; // Default language
 
-    let pdfDoc = null;
-    let mainPage = 1;
-    let previewPage = 2;
+        // Function to render a PDF document
+        async function renderPDF(language, pageNumber = 1, preview = false) {
+            const url = `${pdfPath}${language}.pdf`;
 
-    const renderPage = (pageNum, canvas, scale = 1.5) => {
-      return pdfDoc.getPage(pageNum).then(page => {
-        const viewport = page.getViewport({ scale });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d");
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // テキストレイヤー用にtextLayerを作成
-        page.getTextContent().then(function(textContent) {
-          const textLayerDiv = document.createElement("div");
-          textLayerDiv.className = "textLayer";
-          document.body.appendChild(textLayerDiv);
+            const pdf = await pdfjsLib.getDocument(url).promise;
+            const page = await pdf.getPage(pageNumber);
 
-          // テキストレイヤーの描画
-          PDFJS.renderTextLayer({
-            textContent: textContent,
-            container: textLayerDiv,
-            viewport: viewport,
-            textDir: "ltr"
-          });
+            const scale = preview ? 0.2 : 1; // Scale down for preview
+
+            const viewport = page.getViewport({ scale: scale });
+            const canvas = preview ? document.getElementById('pdf-preview-canvas') : document.getElementById('pdf-main-canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+        }
+
+        // Function to initialize the viewer
+        async function initializeViewer() {
+            // Main canvas
+            const mainCanvas = document.createElement('canvas');
+            mainCanvas.id = 'pdf-main-canvas';
+            document.getElementById('pdf-main').appendChild(mainCanvas);
+
+            // Preview canvas
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.id = 'pdf-preview-canvas';
+            document.getElementById('pdf-preview').appendChild(previewCanvas);
+
+            // Render both pages for the initial language
+            await renderPDF(currentLanguage, 1); // Main display
+            await renderPDF(currentLanguage, 2, true); // Preview
+        }
+
+        // Event listener for language change
+        document.getElementById('language-dropdown').addEventListener('change', async (event) => {
+            currentLanguage = event.target.value;
+            await initializeViewer();
         });
 
-        return page.render({ canvasContext: ctx, viewport }).promise;
-      });
-    };
-
-    const loadPDF = (url) => {
-      pdfjsLib.getDocument(url).promise.then(pdf => {
-        pdfDoc = pdf;
-        mainPage = 1;
-        previewPage = pdf.numPages >= 2 ? 2 : 1;
-
-        renderPage(mainPage, mainCanvas, 1.5);
-        if (mainPage !== previewPage) {
-          renderPage(previewPage, previewCanvas, 0.5);
-        } else {
-          previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-        }
-      });
-    };
-
-    // 言語選択時
-    langSelect.addEventListener("change", () => {
-      const lang = langSelect.value;
-      loadPDF(langToPDF[lang]);
-    });
-
-    // URLパラメータ対応
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlLang = urlParams.get('lang');
-    if (urlLang && langToPDF[urlLang]) {
-      langSelect.value = urlLang;
-    }
-
-    loadPDF(langToPDF[langSelect.value]);
-
-    // プレビュークリック → ページ入れ替え
-    document.getElementById("previewContainer").addEventListener("click", () => {
-      if (!pdfDoc) return;
-
-      // スワップ
-      [mainPage, previewPage] = [previewPage, mainPage];
-
-      renderPage(mainPage, mainCanvas, 1.5);
-      if (mainPage !== previewPage) {
-        renderPage(previewPage, previewCanvas, 0.5);
-      } else {
-        previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-      }
-    });
-  </script>
-
+        // Initialize the viewer when the page loads
+        window.onload = initializeViewer;
+    </script>
 </body>
 </html>
