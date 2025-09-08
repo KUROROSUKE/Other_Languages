@@ -35,12 +35,12 @@
             align-items: center;
             background-color: #fff;
             cursor: pointer;
-            max-width: 150px;
-            max-height: 210px;
+            width: 200px; /* Adjusted width */
+            height: 280px; /* Adjusted height */
         }
         #pdf-preview canvas {
             width: 100%;
-            height: auto;
+            height: 100%;
         }
         #pdf-main {
             display: flex;
@@ -133,7 +133,7 @@
             document.getElementById('pdf-preview').appendChild(previewCanvas);
 
             // Apply the aspect ratio to the preview canvas
-            const previewScale = 0.2; // Desired preview scale
+            const previewScale = 0.4; // Increased preview scale to improve drawing
             previewCanvas.width = A4_RATIO.width * previewScale;
             previewCanvas.height = A4_RATIO.height * previewScale;
 
