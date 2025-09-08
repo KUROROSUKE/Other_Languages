@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>PDF Viewer with Swap Preview</title>
+  <title>多言語版パンフレット</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
@@ -47,6 +47,14 @@
     #previewCanvas {
       display: block;
     }
+
+    .textLayer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
   </style>
 </head>
 <body>
@@ -63,7 +71,7 @@
   <div id="mainContainer">
     <canvas id="mainCanvas"></canvas>
     <div id="previewContainer" title="クリックでページ入れ替え">
-      <canvas id="previewCanvas" style="width:5%;height:auto;"></canvas>
+      <canvas id="previewCanvas" style="width: 10%; height: auto;"></canvas>
     </div>
   </div>
 
@@ -95,6 +103,22 @@
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // テキストレイヤー用にtextLayerを作成
+        page.getTextContent().then(function(textContent) {
+          const textLayerDiv = document.createElement("div");
+          textLayerDiv.className = "textLayer";
+          document.body.appendChild(textLayerDiv);
+
+          // テキストレイヤーの描画
+          PDFJS.renderTextLayer({
+            textContent: textContent,
+            container: textLayerDiv,
+            viewport: viewport,
+            textDir: "ltr"
+          });
+        });
+
         return page.render({ canvasContext: ctx, viewport }).promise;
       });
     };
