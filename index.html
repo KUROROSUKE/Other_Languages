@@ -2,21 +2,39 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Multilang Brochure</title>
+  <title>Multilang Brochure with Preview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; font-family: sans-serif; }
+
     .lang-selector {
       position: absolute;
       top: 20px;
       right: 20px;
+      z-index: 10;
     }
-    iframe {
-      display: block;
-      margin: 60px auto 0;
-      width: 90%;
-      height: 90vh;
-      border: none;
+
+    #mainViewer {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      border: 1px solid #ccc;
+    }
+
+    #preview {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 150px;
+      cursor: pointer;
+      z-index: 5;
+      border: 2px solid #666;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
     }
   </style>
 </head>
@@ -30,11 +48,20 @@
     </select>
   </div>
 
-  <iframe id="pdfFrame" src="pdf/ja.pdf#toolbar=0"></iframe>
+  <canvas id="preview" title="クリックしてこのページを表示"></canvas>
+  <div id="mainViewer">
+    <canvas id="mainCanvas"></canvas>
+  </div>
+
+  <!-- PDF.jsライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
   <script>
     const langSelect = document.getElementById("langSelect");
-    const pdfFrame = document.getElementById("pdfFrame");
+    const previewCanvas = document.getElementById("preview");
+    const mainCanvas = document.getElementById("mainCanvas");
+    const mainCtx = mainCanvas.getContext("2d");
+    const previewCtx = previewCanvas.getContext("2d");
 
     const langToPDF = {
       ja: "pdf/ja.pdf",
@@ -42,20 +69,72 @@
       fr: "pdf/fr.pdf"
     };
 
-    // 言語切り替え時にPDF変更
-    langSelect.addEventListener("change", function() {
-      const lang = langSelect.value;
-      pdfFrame.src = `${langToPDF[lang]}#toolbar=0`;
+    let pdfDoc = null;
+    let currentLang = "ja";
+    let currentPage = 1;
+
+    const renderPage = (pageNum, canvas, scale = 1.5) => {
+      pdfDoc.getPage(pageNum).then(page => {
+        const viewport = page.getViewport({ scale });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+        page.render(renderContext);
+      });
+    };
+
+    const loadPDF = (url) => {
+      pdfjsLib.getDocument(url).promise.then(pdf => {
+        pdfDoc = pdf;
+        currentPage = 1;
+        renderPage(1, mainCanvas, 1.5);
+        if (pdf.numPages >= 2) {
+          renderPage(2, previewCanvas, 0.5);
+        } else {
+          previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        }
+      });
+    };
+
+    // 初回読み込み
+    loadPDF(langToPDF[currentLang]);
+
+    // 言語切り替え
+    langSelect.addEventListener("change", () => {
+      currentLang = langSelect.value;
+      loadPDF(langToPDF[currentLang]);
     });
 
-    // URLパラメータで言語指定（例: ?lang=en）
+    // URLパラメータ対応
     const urlParams = new URLSearchParams(window.location.search);
     const urlLang = urlParams.get('lang');
     if (urlLang && langToPDF[urlLang]) {
       langSelect.value = urlLang;
-      pdfFrame.src = `${langToPDF[urlLang]}#toolbar=0`;
+      currentLang = urlLang;
+      loadPDF(langToPDF[currentLang]);
     }
-  </script>
 
+    // プレビュークリックでページ切り替え
+    previewCanvas.addEventListener("click", () => {
+      if (pdfDoc && pdfDoc.numPages >= 2) {
+        currentPage = 2;
+        renderPage(2, mainCanvas, 1.5);
+      }
+    });
+
+    // メインキャンバスをクリックで1ページ目に戻す
+    mainCanvas.addEventListener("click", () => {
+      if (pdfDoc && currentPage !== 1) {
+        currentPage = 1;
+        renderPage(1, mainCanvas, 1.5);
+      }
+    });
+  </script>
 </body>
 </html>
