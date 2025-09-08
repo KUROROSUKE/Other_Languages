@@ -96,13 +96,14 @@
         // Function to render a PDF document
         async function renderPDF(language, pageNumber = 1, preview = false) {
             try {
-                const url = `https://kurorosuke.github.io/Other_Languages/${pdfPath}${language}.pdf`;
+                const url = `${pdfPath}${language}.pdf`;
+                console.log(`Rendering PDF: ${url}, page: ${pageNumber}`);
                 const pdf = await pdfjsLib.getDocument(url).promise;
                 const page = await pdf.getPage(pageNumber);
 
                 const scale = preview ? 0.2 : 1; // Scale down for preview
-
                 const viewport = page.getViewport({ scale: scale });
+
                 const canvas = preview ? document.getElementById('pdf-preview-canvas') : document.getElementById('pdf-main-canvas');
                 const context = canvas.getContext('2d');
 
@@ -137,7 +138,6 @@
             document.getElementById('pdf-preview').appendChild(previewCanvas);
 
             // Apply the aspect ratio to the preview canvas
-            const previewCanvas = document.getElementById('pdf-preview-canvas');
             const previewScale = 0.2; // Desired preview scale
             previewCanvas.width = A4_RATIO.width * previewScale;
             previewCanvas.height = A4_RATIO.height * previewScale;
