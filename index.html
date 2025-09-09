@@ -1,23 +1,44 @@
 <!DOCTYPE html>
-<html lang="en"> <!-- 選択に応じて動的変更 -->
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Other Languages PDF</title>
+  <title>Multi-language PDF Preview</title>
   <style>
     :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; --primary-2:#2a7bd1; }
-    *{box-sizing:border-box}
-    body{ margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
-      background:var(--bg); color:var(--text); display:flex; flex-direction:column; height:100vh; }
-    header{ padding:10px 16px; background:var(--panel); display:flex; gap:10px; align-items:center; border-bottom:1px solid #1b2a3f; }
+    *{ box-sizing:border-box }
+    body{
+      margin:0; padding:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
+      background:var(--bg); color:var(--text);
+      display:flex; flex-direction:column; height:100vh;
+    }
+    header{
+      padding:10px 16px; background:var(--panel);
+      display:flex; gap:10px; align-items:center;
+      border-bottom:1px solid #1b2a3f;
+    }
     label{ font-size:14px; color:var(--muted) }
-    select{ appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:var(--text); font-size:14px; padding:6px 10px; min-width:180px; }
-    button{ appearance:none; border:none; cursor:pointer; padding:7px 14px; border-radius:8px; font-weight:600; font-size:14px; background:var(--primary); color:#07131f; transition:.15s background; }
+    select{
+      appearance:none; background:#0d141e; border:1px solid #24344d;
+      border-radius:8px; color:var(--text);
+      font-size:14px; padding:6px 10px; min-width:180px;
+    }
+    button{
+      appearance:none; border:none; cursor:pointer;
+      padding:7px 14px; border-radius:8px;
+      font-weight:600; font-size:14px;
+      background:var(--primary); color:#07131f;
+      transition:.15s background;
+    }
     button:hover{ background:var(--primary-2); }
     .status{ margin-left:auto; font-size:13px; color:var(--muted) }
     main{ flex:1; display:flex; flex-direction:column }
     iframe{ flex:1; width:100%; border:0; background:#0b111a }
-    .error{ display:none; color:#ffd1d1; background:#471c1c; border:1px solid #7a2b2b; padding:8px 10px; font-size:13px }
+    .error{
+      display:none; color:#ffd1d1; background:#471c1c;
+      border:1px solid #7a2b2b; padding:8px 10px; font-size:13px
+    }
   </style>
 </head>
 <body>
@@ -43,11 +64,12 @@
   </header>
 
   <main>
-    <iframe id="preview" title="PDF Preview"></iframe>
+    <iframe id="preview" title="PDF Preview" referrerpolicy="no-referrer"></iframe>
     <div id="errorBox" class="error">Load failed. Check URL or file existence.</div>
   </main>
 
   <script>
+    // ===== constants =====
     const SELECT_ID = "lang_selection";
     const PREVIEW_ID = "preview";
     const STATUS_ID = "statusText";
@@ -72,11 +94,11 @@
       "ko": { lang:"언어", preview:"미리보기", idle:"파일 미로드", loading:"불러오는 중…", showing:(l)=>`표시 중: ${l}.pdf`, fail:"로드 실패. URL 확인.", title:"PDF 미리보기" },
     };
 
+    // ===== init =====
     document.getElementById(PREVIEW_BTN_ID).addEventListener("click", handlePreview);
     document.getElementById(SELECT_ID).addEventListener("change", handleLangChange);
     document.addEventListener("keydown", (e)=>{ if(e.key==="Enter") handlePreview(); });
-
-    initUI(); // 初期化
+    initUI();
 
     // ===== functions =====
     function initUI(){
@@ -94,15 +116,26 @@
       return `${BASE_URL}/${lang}.pdf`;
     }
 
+    // iOS のみ PDF.js ビューアで埋め込み（テキスト選択可）。他はネイティブ表示。
+    function buildPreviewUrl(lang){
+      const pdf = buildUrl(lang);
+      if(isIOS()){
+        const enc = encodeURIComponent(pdf);
+        return `https://mozilla.github.io/pdf.js/web/viewer.html?file=${enc}#zoom=page-width`;
+      }
+      return pdf;
+    }
+
     async function handlePreview(){
       clearError();
       const lang = getSelectedLang();
-      const url = buildUrl(lang);
+      const rawUrl  = buildUrl(lang);         // 存在チェック用
+      const viewUrl = buildPreviewUrl(lang);  // 表示用（iOSはPDF.js）
       setStatus(getMsg("loading"));
       try{
-        const ok = await headOk(url);
+        const ok = await headOk(rawUrl);
         if(!ok) throw new Error("not found");
-        document.getElementById(PREVIEW_ID).src = url;
+        document.getElementById(PREVIEW_ID).src = viewUrl;
         setStatus(getMsg("showing")(lang));
       }catch{
         setStatus(getMsg("fail"));
@@ -152,10 +185,16 @@
       catch{ return false; }
     }
 
+    function isIOS(){
+      const ua = navigator.userAgent || navigator.vendor || "";
+      const iOS = /iPad|iPhone|iPod/.test(ua);
+      const iPadOS13Plus = (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      return iOS || iPadOS13Plus;
+    }
+
     function setHtmlLang(lang){
-      // 方向は固定 LTR（要望により反転しない）
       document.documentElement.lang = lang;
-      document.documentElement.dir = "ltr";
+      document.documentElement.dir = "ltr"; // 反転しない
     }
   </script>
 </body>
