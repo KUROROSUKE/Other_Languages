@@ -109,6 +109,12 @@
     document.getElementById(SELECT_ID).addEventListener("change", handleLangChange);
     initUI();
 
+    // 初期化で英語版を自動ロード
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById(SELECT_ID).value = "en";
+      handlePreview();
+    });
+
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
 
