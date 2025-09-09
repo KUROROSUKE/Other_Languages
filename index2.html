@@ -8,28 +8,47 @@
     :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; --primary-2:#2a7bd1; }
     *{ box-sizing:border-box }
     body{
-      margin:0; padding:0; height:100vh; display:flex; flex-direction:column;
+      margin:0; padding:0;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
       background:var(--bg); color:var(--text);
+      display:flex; flex-direction:column; height:100vh;
     }
     header{
       padding:10px 16px; background:var(--panel);
-      display:flex; gap:10px; align-items:center; border-bottom:1px solid #1b2a3f;
+      display:flex; gap:10px; align-items:center;
+      border-bottom:1px solid #1b2a3f;
     }
     label{ font-size:14px; color:var(--muted) }
     select{
       appearance:none; background:#0d141e; border:1px solid #24344d;
-      border-radius:8px; color:var(--text); font-size:14px; padding:6px 10px; min-width:180px;
+      border-radius:8px; color:var(--text);
+      font-size:14px; padding:6px 10px; min-width:180px;
     }
     button{
-      appearance:none; border:none; cursor:pointer; padding:7px 14px; border-radius:8px;
-      font-weight:600; font-size:14px; background:var(--primary); color:#07131f; transition:.15s background;
+      appearance:none; border:none; cursor:pointer;
+      padding:7px 14px; border-radius:8px;
+      font-weight:600; font-size:14px;
+      background:var(--primary); color:#07131f;
+      transition:.15s background;
     }
     button:hover{ background:var(--primary-2); }
     .status{ margin-left:auto; font-size:13px; color:var(--muted) }
-    main{ flex:1; display:flex; }
+
+    .eta{
+      display:flex; align-items:center; gap:10px;
+      padding:8px 16px; background:#0d141e; border-bottom:1px solid #1b2a3f;
+    }
+    .bar{ position:relative; flex:1; height:10px; background:#203046; border-radius:999px; overflow:hidden }
+    .fill{ position:absolute; left:0; top:0; height:100%; width:0%; background:#3aa0ff; transition:width .2s linear }
+    .etatext{ width:150px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px }
+    .eta[hidden]{ display:none }
+
+    main{ flex:1; display:flex; flex-direction:column }
     iframe{ flex:1; width:100%; border:0; background:#0b111a }
-    .error{ display:none; color:#ffd1d1; background:#471c1c; border:1px solid #7a2b2b; padding:8px 10px; font-size:13px; margin:8px 16px }
+    .error{
+      display:none; color:#ffd1d1; background:#471c1c;
+      border:1px solid #7a2b2b; padding:8px 10px; font-size:13px
+    }
   </style>
 </head>
 <body>
@@ -54,11 +73,16 @@
     <div id="statusText" class="status">No file loaded</div>
   </header>
 
-  <main>
-    <iframe id="preview" title="PDF Preview"></iframe>
-  </main>
+  <!-- 進捗/残り時間 -->
+  <div id="etaRow" class="eta" hidden>
+    <div class="bar"><div id="etaFill" class="fill"></div></div>
+    <div id="etaText" class="etatext">--</div>
+  </div>
 
-  <div id="errorBox" class="error">Load failed. Check URL or file existence.</div>
+  <main>
+    <iframe id="preview" title="PDF Preview" referrerpolicy="no-referrer"></iframe>
+    <div id="errorBox" class="error">Load failed. Check URL or file existence.</div>
+  </main>
 
   <script>
     // ===== constants =====
@@ -68,22 +92,25 @@
     const ERROR_ID = "errorBox";
     const LABEL_LANG_ID = "label-lang";
     const PREVIEW_BTN_ID = "preview-btn";
-    const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf"; // PDF 置き場（同ドメイン想定）
+    const ETA_ROW_ID = "etaRow";
+    const ETA_FILL_ID = "etaFill";
+    const ETA_TEXT_ID = "etaText";
+    const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf";
 
     const I18N = {
-      "en": { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l)=>`Showing: ${l}.pdf`, fail:"Load failed. Check URL or file existence.", title:"PDF Preview" },
-      "ja": { lang:"言語", preview:"プレビュー", idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l)=>`表示中: ${l}.pdf`, fail:"読み込みに失敗しました。URL を確認してください。", title:"PDF プレビュー" },
-      "de": { lang:"Sprache", preview:"Vorschau", idle:"Keine Datei geladen", loading:"Laden…", showing:(l)=>`Wird angezeigt: ${l}.pdf`, fail:"Laden fehlgeschlagen. URL prüfen.", title:"PDF-Vorschau" },
-      "fr": { lang:"Langue", preview:"Aperçu", idle:"Aucun fichier chargé", loading:"Chargement…", showing:(l)=>`Affichage : ${l}.pdf`, fail:"Échec du chargement. Vérifiez l’URL.", title:"Aperçu PDF" },
-      "es": { lang:"Idioma", preview:"Vista previa", idle:"Ningún archivo cargado", loading:"Cargando…", showing:(l)=>`Mostrando: ${l}.pdf`, fail:"Error de carga. Verifique la URL.", title:"Vista previa de PDF" },
-      "pt": { lang:"Idioma", preview:"Prévia", idle:"Nenhum arquivo carregado", loading:"Carregando…", showing:(l)=>`Exibindo: ${l}.pdf`, fail:"Falha ao carregar. Verifique a URL.", title:"Pré-visualização de PDF" },
-      "it": { lang:"Lingua", preview:"Anteprima", idle:"Nessun file caricato", loading:"Caricamento…", showing:(l)=>`In visualizzazione: ${l}.pdf`, fail:"Caricamento non riuscito. Verifica l’URL.", title:"Anteprima PDF" },
-      "ru": { lang:"Язык", preview:"Предпросмотр", idle:"Файл не загружен", loading:"Загрузка…", showing:(l)=>`Отображается: ${l}.pdf`, fail:"Не удалось загрузить. Проверьте URL.", title:"Предпросмотр PDF" },
-      "ar": { lang:"اللغة", preview:"معاينة", idle:"لا ملف محمّل", loading:"جارٍ التحميل…", showing:(l)=>`يُعرض: ‎${l}.pdf`, fail:"فشل التحميل. تحقق من الرابط.", title:"معاينة PDF" },
-      "hi": { lang:"भाषा", preview:"पूर्वावलोकन", idle:"कोई फ़ाइल लोड नहीं", loading:"लोड हो रहा है…", showing:(l)=>`दिखा रहा है: ${l}.pdf`, fail:"लोड विफल। URL जाँचें.", title:"PDF पूर्वावलोकन" },
-      "zh-CN": { lang:"语言", preview:"预览", idle:"未加载文件", loading:"正在加载…", showing:(l)=>`正在显示：${l}.pdf`, fail:"加载失败。请检查链接。", title:"PDF 预览" },
-      "zh-TW": { lang:"語言", preview:"預覽", idle:"未載入檔案", loading:"載入中…", showing:(l)=>`顯示中：${l}.pdf`, fail:"載入失敗。請檢查連結。", title:"PDF 預覽" },
-      "ko": { lang:"언어", preview:"미리보기", idle:"파일 미로드", loading:"불러오는 중…", showing:(l)=>`표시 중: ${l}.pdf`, fail:"로드 실패. URL 확인.", title:"PDF 미리보기" },
+      "en": { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l)=>`Showing: ${l}.pdf`, fail:"Load failed. Check URL or file existence.", title:"PDF Preview", eta_prefix:"ETA", calc:"Calculating…" },
+      "ja": { lang:"言語", preview:"プレビュー", idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l)=>`表示中: ${l}.pdf`, fail:"読み込みに失敗しました。URL を確認してください。", title:"PDF プレビュー", eta_prefix:"残り", calc:"計測中…" },
+      "de": { lang:"Sprache", preview:"Vorschau", idle:"Keine Datei geladen", loading:"Laden…", showing:(l)=>`Wird angezeigt: ${l}.pdf`, fail:"Laden fehlgeschlagen. URL prüfen.", title:"PDF-Vorschau", eta_prefix:"Restzeit", calc:"Berechnung…" },
+      "fr": { lang:"Langue", preview:"Aperçu", idle:"Aucun fichier chargé", loading:"Chargement…", showing:(l)=>`Affichage : ${l}.pdf`, fail:"Échec du chargement. Vérifiez l’URL.", title:"Aperçu PDF", eta_prefix:"Reste", calc:"Calcul…" },
+      "es": { lang:"Idioma", preview:"Vista previa", idle:"Ningún archivo cargado", loading:"Cargando…", showing:(l)=>`Mostrando: ${l}.pdf`, fail:"Error de carga. Verifique la URL.", title:"Vista previa de PDF", eta_prefix:"Faltan", calc:"Calculando…" },
+      "pt": { lang:"Idioma", preview:"Prévia", idle:"Nenhum arquivo carregado", loading:"Carregando…", showing:(l)=>`Exibindo: ${l}.pdf`, fail:"Falha ao carregar. Verifique a URL.", title:"Pré-visualização de PDF", eta_prefix:"Restante", calc:"Calculando…" },
+      "it": { lang:"Lingua", preview:"Anteprima", idle:"Nessun file caricato", loading:"Caricamento…", showing:(l)=>`In visualizzazione: ${l}.pdf`, fail:"Caricamento non riuscito. Verifica l’URL.", title:"Anteprima PDF", eta_prefix:"Rimanente", calc:"Calcolo…" },
+      "ru": { lang:"Язык", preview:"Предпросмотр", idle:"Файл не загружен", loading:"Загрузка…", showing:(l)=>`Отображается: ${l}.pdf`, fail:"Не удалось загрузить. Проверьте URL.", title:"Предпросмотр PDF", eta_prefix:"Осталось", calc:"Расчет…" },
+      "ar": { lang:"اللغة", preview:"معاينة", idle:"لا ملف محمّل", loading:"جارٍ التحميل…", showing:(l)=>`يُعرض: ‎${l}.pdf`, fail:"فشل التحميل. تحقق من الرابط.", title:"معاينة PDF", eta_prefix:"الوقت المتبقي", calc:"جارٍ الحساب…" },
+      "hi": { lang:"भाषा", preview:"पूर्वावलोकन", idle:"कोई फ़ाइल लोड नहीं", loading:"लोड हो रहा है…", showing:(l)=>`दिखा रहा है: ${l}.pdf`, fail:"लोड विफल। URL जाँचें.", title:"PDF पूर्वावलोकन", eta_prefix:"शेष", calc:"गणना…" },
+      "zh-CN": { lang:"语言", preview:"预览", idle:"未加载文件", loading:"正在加载…", showing:(l)=>`正在显示：${l}.pdf`, fail:"加载失败。请检查链接。", title:"PDF 预览", eta_prefix:"剩余", calc:"计算中…" },
+      "zh-TW": { lang:"語言", preview:"預覽", idle:"未載入檔案", loading:"載入中…", showing:(l)=>`顯示中：${l}.pdf`, fail:"載入失敗。請檢查連結。", title:"PDF 預覽", eta_prefix:"剩餘", calc:"計算中…" },
+      "ko": { lang:"언어", preview:"미리보기", idle:"파일 미로드", loading:"불러오는 중…", showing:(l)=>`표시 중: ${l}.pdf`, fail:"로드 실패. URL 확인.", title:"PDF 미리보기", eta_prefix:"남은 시간", calc:"계산 중…" },
     };
 
     // ===== init =====
@@ -91,6 +118,9 @@
     document.getElementById(SELECT_ID).addEventListener("change", handleLangChange);
     document.addEventListener("keydown", (e)=>{ if(e.key==="Enter") handlePreview(); });
     initUI();
+
+    // ===== state =====
+    let progressAbort = null;
 
     // ===== functions =====
     function initUI(){
@@ -108,47 +138,39 @@
       return `${BASE_URL}/${lang}.pdf`;
     }
 
-    // 重要: iOS はローカル同梱の PDF.js ビューアを使用（複数ページ＋正しいレイアウト＋テキスト選択）
     function buildPreviewUrl(lang){
       const pdf = buildUrl(lang);
       if(isIOS()){
         const enc = encodeURIComponent(pdf);
-        // リポジトリ直下に配置した pdfjs を参照（同一オリジン）
-        return `/pdfjs/web/viewer.html?file=${enc}#zoom=page-width`;
+        return `https://docs.google.com/gview?embedded=true&url=${enc}`;
       }
-      // それ以外はネイティブ表示
-      return `${pdf}#view=FitH`;
+      return pdf;
     }
 
     async function handlePreview(){
       clearError();
+      stopEta();
       const lang = getSelectedLang();
-      const rawUrl  = buildUrl(lang);         // 存在チェック
-      const viewUrl = buildPreviewUrl(lang);  // 表示URL
+      const rawUrl  = buildUrl(lang);
+      const viewUrl = buildPreviewUrl(lang);
       setStatus(getMsg("loading"));
 
-      // タイムアウト付きフォールバック: iOS で viewer が描画できない場合は新規タブで開く
-      const FAIL_SAFE_MS = 8000;
+      // iframe ロード完了で ETA 停止
+      const iframe = document.getElementById(PREVIEW_ID);
+      const onLoaded = () => { stopEta(); iframe.removeEventListener('load', onLoaded); };
+      iframe.addEventListener('load', onLoaded);
+
+      // 先に ETA 計測開始（失敗時は不確定表示）
+      startEta(rawUrl);
 
       try{
         const ok = await headOk(rawUrl);
         if(!ok) throw new Error("not found");
-
-        const iframe = document.getElementById(PREVIEW_ID);
-        let timer = null;
-
-        if(isIOS()){
-          timer = setTimeout(()=> {
-            // フォールバック（ネイティブビューア）
-            window.open(rawUrl, "_blank");
-          }, FAIL_SAFE_MS);
-        }
-
-        iframe.src = viewUrl;
-
-        iframe.onload = () => { if(timer) clearTimeout(timer); };
+        const bust = Date.now().toString(36);
+        iframe.src = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${bust}`;
         setStatus(getMsg("showing")(lang));
       }catch{
+        stopEta();
         setStatus(getMsg("fail"));
         showError(getMsg("fail"));
       }
@@ -205,7 +227,70 @@
 
     function setHtmlLang(lang){
       document.documentElement.lang = lang;
-      document.documentElement.dir = "ltr"; // 反転しない
+      document.documentElement.dir = "ltr";
+    }
+
+    // ===== ETA: 残り時間推定 =====
+    function startEta(url){
+      const row = document.getElementById(ETA_ROW_ID);
+      const fill = document.getElementById(ETA_FILL_ID);
+      const text = document.getElementById(ETA_TEXT_ID);
+      row.hidden = false;
+      fill.style.width = "0%";
+      text.textContent = `${getMsg('eta_prefix')}: ${getMsg('calc')}`;
+
+      progressAbort = new AbortController();
+      const started = performance.now();
+      let loaded = 0, total = 0;
+
+      fetch(url, { signal: progressAbort.signal, cache:"no-store" })
+        .then(res => {
+          if(!res.ok) throw new Error('fetch');
+          total = Number(res.headers.get('Content-Length')) || 0;
+          if(!res.body || !('getReader' in res.body)){
+            // ストリーム非対応: すぐ終了扱い
+            text.textContent = `${getMsg('eta_prefix')}: ${formatEta(0)}`;
+            fill.style.width = "100%";
+            return;
+          }
+          const r = res.body.getReader();
+          const pump = () => r.read().then(({done, value})=>{
+            if(done){ text.textContent = `${getMsg('eta_prefix')}: ${formatEta(0)}`; fill.style.width = "100%"; return; }
+            loaded += value.byteLength;
+            updateUi();
+            return pump();
+          });
+          return pump();
+        })
+        .catch(()=>{ text.textContent = `${getMsg('eta_prefix')}: ${getMsg('calc')}`; });
+
+      function updateUi(){
+        const dt = (performance.now() - started) / 1000; // s
+        const speed = dt > 0 ? loaded / dt : 0;          // B/s
+        if(total > 0 && speed > 0){
+          const remain = Math.max(0, total - loaded);
+          const eta = remain / speed;                    // s
+          const pct = Math.min(100, Math.round(loaded / total * 100));
+          document.getElementById(ETA_FILL_ID).style.width = pct + "%";
+          document.getElementById(ETA_TEXT_ID).textContent = `${getMsg('eta_prefix')}: ${formatEta(eta)}`;
+        }else{
+          document.getElementById(ETA_TEXT_ID).textContent = `${getMsg('eta_prefix')}: ${getMsg('calc')}`;
+        }
+      }
+    }
+
+    function stopEta(){
+      if(progressAbort){ try{ progressAbort.abort(); }catch{} progressAbort = null; }
+      const row = document.getElementById(ETA_ROW_ID);
+      row.hidden = true;
+    }
+
+    function formatEta(sec){
+      if(!isFinite(sec) || sec <= 0) return "0s";
+      if(sec < 60) return `${Math.ceil(sec)}s`;
+      const m = Math.floor(sec/60);
+      const s = Math.ceil(sec%60);
+      return `${m}m ${s}s`;
     }
   </script>
 </body>
