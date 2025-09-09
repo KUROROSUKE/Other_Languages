@@ -13,18 +13,20 @@
       background:var(--bg); color:var(--text);
     }
 
+    /* 左: ラベル / 中央: セレクト / 右: ボタン */
     header{
       padding:10px 16px; background:var(--panel); border-bottom:1px solid #1b2a3f;
       display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:12px;
     }
-    .center{ justify-self:center; display:flex; align-items:center; gap:10px; }
+    .left{ justify-self:start; }
+    .center{ justify-self:center; }
     .right{ justify-self:end; }
 
-    label{ font-size:14px; color:var(--muted); text-align:left; }
+    label{ font-size:14px; color:var(--muted); text-align:left }
     select{
-      appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:var(--text);
-      font-size:14px; padding:6px 10px; width:240px;
-      text-align:left; text-align-last:left; direction:ltr;
+      appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:#e8eef6;
+      font-size:14px; padding:6px 10px; width:240px;       /* 幅固定 */
+      text-align:left; text-align-last:left; direction:ltr; /* セレクト内文字は左寄せ */
     }
     button{
       appearance:none; border:none; cursor:pointer; padding:7px 14px; border-radius:8px;
@@ -52,9 +54,10 @@
 </head>
 <body>
   <header>
-    <div></div>
-    <div class="center">
+    <div class="left">
       <label id="label-lang" for="lang_selection">Language</label>
+    </div>
+    <div class="center">
       <select id="lang_selection">
         <option value="en" selected>🇺🇸 English</option>
         <option value="ja">🇯🇵 日本語</option>
@@ -94,7 +97,7 @@
 
     const I18N = {
       en: { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`, fail:"Load failed.", title:"PDF Preview" },
-      ja: { lang:"言語", preview:"表示", idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`, fail:"読み込みに失敗しました", title:"PDFプレビュー" },
+      ja: { lang:"言語", preview:"表示",   idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`, fail:"読み込みに失敗しました", title:"PDFプレビュー" },
     };
 
     document.getElementById(PREVIEW_BTN_ID).addEventListener("click", handlePreview);
@@ -104,6 +107,7 @@
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
 
+    // Android もインラインで見せたいので Docs Viewer を利用
     function buildPreviewUrl(lang){
       const pdf = buildUrl(lang);
       if (isIOS() || isAndroid()){
@@ -118,7 +122,7 @@
       setHtmlLang(getSelectedLang());
     }
 
-    async function handlePreview(){
+    function handlePreview(){
       clearError();
       const lang = getSelectedLang();
       const viewUrl = buildPreviewUrl(lang);
@@ -146,8 +150,8 @@
 
     function applyI18n(lang){
       const t = I18N[lang] || I18N.en;
-      document.getElementById(LABEL_LANG_ID).textContent = t.lang;
-      document.getElementById(PREVIEW_BTN_ID).textContent = t.preview;
+      document.getElementById(LABEL_LANG_ID).textContent = t.lang;   // 左端ラベル
+      document.getElementById(PREVIEW_BTN_ID).textContent = t.preview; // 日本語は「表示」
       document.getElementById(PREVIEW_ID).title = t.title;
     }
 
