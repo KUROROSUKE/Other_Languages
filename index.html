@@ -21,10 +21,10 @@
     .center{ justify-self:center; display:flex; align-items:center; gap:10px; }
     .right{ justify-self:end; }
 
-    label{ font-size:14px; color:var(--muted) }
+    label{ font-size:14px; color:var(--muted); text-align:left }
     select{
       appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:var(--text);
-      font-size:14px; padding:6px 10px; width:240px; /* 幅固定 */
+      font-size:14px; padding:6px 10px; width:240px; text-align:left; text-align-last:left; /* 左寄せ */
     }
     button{
       appearance:none; border:none; cursor:pointer; padding:7px 14px; border-radius:8px;
@@ -94,7 +94,7 @@
 
     const I18N = {
       en: { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`, fail:"Load failed.", title:"PDF Preview" },
-      ja: { lang:"言語", preview:"プレビュー", idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`, fail:"読み込みに失敗しました", title:"PDFプレビュー" },
+      ja: { lang:"言語", preview:"表示",   idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`, fail:"読み込みに失敗しました", title:"PDFプレビュー" },
     };
 
     document.getElementById(PREVIEW_BTN_ID).addEventListener("click", handlePreview);
@@ -103,11 +103,12 @@
 
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
+
+    // iOS と Android は Google Docs Viewer で埋め込み（新規タブ誘導を抑制）
     function buildPreviewUrl(lang){
       const pdf = buildUrl(lang);
-      if(isIOS()){
-        const enc = encodeURIComponent(pdf);
-        return `https://docs.google.com/gview?embedded=true&url=${enc}`;
+      if (isIOS() || isAndroid()){
+        return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
       }
       return pdf;
     }
@@ -147,7 +148,7 @@
     function applyI18n(lang){
       const t = I18N[lang] || I18N.en;
       document.getElementById(LABEL_LANG_ID).textContent = t.lang;
-      document.getElementById(PREVIEW_BTN_ID).textContent = t.preview;
+      document.getElementById(PREVIEW_BTN_ID).textContent = t.preview; // 日本語のみ「表示」
       document.getElementById(PREVIEW_ID).title = t.title;
     }
 
@@ -165,6 +166,14 @@
       const iOS = /iPad|iPhone|iPod/.test(ua);
       const iPadOS13Plus = (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       return iOS || iPadOS13Plus;
+    }
+    function isAndroid(){
+      const ua = navigator.userAgent || navigator.vendor || "";
+      return /Android/i.test(ua);
+    }
+    function setHtmlLang(lang){
+      document.documentElement.lang = lang;
+      document.documentElement.dir = "ltr";
     }
   </script>
 </body>
