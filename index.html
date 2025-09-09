@@ -104,7 +104,7 @@
       ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음"},
     };
 
-    const RENDER_GRACE_SEC = 3;   // ダウンロード完了→描画までの猶予
+    const RENDER_GRACE_SEC = 2;   // ダウンロード完了 → 描画までの猶予(秒)
     const MAX_RENDER_RETRY = 3;   // 自動再試行 最大3回（初回＋再試行2回）
 
     document.getElementById(SELECT_ID).addEventListener("change", () => {
