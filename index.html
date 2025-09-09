@@ -116,32 +116,36 @@
       return `${BASE_URL}/${lang}.pdf`;
     }
 
+    // iOS は Google Docs Viewer（CORS問題回避＋全文表示＋テキスト選択可）。他はネイティブ。
     function buildPreviewUrl(lang){
-  return buildUrl(lang); // そのまま返す
-}
-
-async function handlePreview(){
-  clearError();
-  const lang = getSelectedLang();
-  const rawUrl = buildUrl(lang);
-  setStatus(getMsg("loading"));
-  try{
-    const ok = await headOk(rawUrl);
-    if(!ok) throw new Error("not found");
-    if(isIOS()){
-      // iPad/iPhoneは新規タブで開く
-      window.open(rawUrl, "_blank");
-      setStatus(getMsg("showing")(lang));
-    }else{
-      document.getElementById(PREVIEW_ID).src = rawUrl;
-      setStatus(getMsg("showing")(lang));
+      const pdf = buildUrl(lang);
+      if(isIOS()){
+        const enc = encodeURIComponent(pdf);
+        // docs と gview のどちらか。ここでは gview を使用。
+        return `https://docs.google.com/gview?embedded=true&url=${enc}`;
+        // 代替: return `https://drive.google.com/viewerng/viewer?embedded=true&url=${enc}`;
+      }
+      return pdf;
     }
-  }catch{
-    setStatus(getMsg("fail"));
-    showError(getMsg("fail"));
-  }
-}
 
+    async function handlePreview(){
+      clearError();
+      const lang = getSelectedLang();
+      const rawUrl  = buildUrl(lang);         // 存在チェック用
+      const viewUrl = buildPreviewUrl(lang);  // 表示用
+      setStatus(getMsg("loading"));
+      try{
+        const ok = await headOk(rawUrl);
+        if(!ok) throw new Error("not found");
+        // キャッシュ汚染回避の軽いバスト
+        const bust = Date.now().toString(36);
+        document.getElementById(PREVIEW_ID).src = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${bust}`;
+        setStatus(getMsg("showing")(lang));
+      }catch{
+        setStatus(getMsg("fail"));
+        showError(getMsg("fail"));
+      }
+    }
 
     function handleLangChange(){
       const lang = getSelectedLang();
