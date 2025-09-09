@@ -116,12 +116,14 @@
       return `${BASE_URL}/${lang}.pdf`;
     }
 
-    // iOS のみ PDF.js ビューアで埋め込み（テキスト選択可）。他はネイティブ表示。
+    // iOS は Google Docs Viewer（CORS問題回避＋全文表示＋テキスト選択可）。他はネイティブ。
     function buildPreviewUrl(lang){
       const pdf = buildUrl(lang);
       if(isIOS()){
         const enc = encodeURIComponent(pdf);
-        return `https://mozilla.github.io/pdf.js/web/viewer.html?file=${enc}#zoom=page-width`;
+        // docs と gview のどちらか。ここでは gview を使用。
+        return `https://docs.google.com/gview?embedded=true&url=${enc}`;
+        // 代替: return `https://drive.google.com/viewerng/viewer?embedded=true&url=${enc}`;
       }
       return pdf;
     }
@@ -130,12 +132,14 @@
       clearError();
       const lang = getSelectedLang();
       const rawUrl  = buildUrl(lang);         // 存在チェック用
-      const viewUrl = buildPreviewUrl(lang);  // 表示用（iOSはPDF.js）
+      const viewUrl = buildPreviewUrl(lang);  // 表示用
       setStatus(getMsg("loading"));
       try{
         const ok = await headOk(rawUrl);
         if(!ok) throw new Error("not found");
-        document.getElementById(PREVIEW_ID).src = viewUrl;
+        // キャッシュ汚染回避の軽いバスト
+        const bust = Date.now().toString(36);
+        document.getElementById(PREVIEW_ID).src = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${bust}`;
         setStatus(getMsg("showing")(lang));
       }catch{
         setStatus(getMsg("fail"));
@@ -181,7 +185,7 @@
     }
 
     async function headOk(url){
-      try{ const res = await fetch(url, { method:"HEAD" }); return res.ok; }
+      try{ const res = await fetch(url, { method:"HEAD", cache:"no-store" }); return res.ok; }
       catch{ return false; }
     }
 
