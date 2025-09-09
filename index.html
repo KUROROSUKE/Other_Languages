@@ -13,20 +13,17 @@
       background:var(--bg); color:var(--text);
     }
 
-    /* 左: ラベル / 中央: セレクト / 右: ボタン */
     header{
       padding:10px 16px; background:var(--panel); border-bottom:1px solid #1b2a3f;
       display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:12px;
     }
-    .left{ justify-self:start; }
     .center{ justify-self:center; }
     .right{ justify-self:end; }
 
-    label{ font-size:14px; color:var(--muted); text-align:left }
     select{
       appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:#e8eef6;
-      font-size:14px; padding:6px 10px; width:240px;       /* 幅固定 */
-      text-align:left; text-align-last:left; direction:ltr; /* セレクト内文字は左寄せ */
+      font-size:14px; padding:6px 10px; width:240px;
+      text-align:left; text-align-last:left; direction:ltr;
     }
     button{
       appearance:none; border:none; cursor:pointer; padding:7px 14px; border-radius:8px;
@@ -54,9 +51,7 @@
 </head>
 <body>
   <header>
-    <div class="left">
-      <label id="label-lang" for="lang_selection">Language</label>
-    </div>
+    <div></div>
     <div class="center">
       <select id="lang_selection">
         <option value="en" selected>🇺🇸 English</option>
@@ -92,12 +87,22 @@
     const STATUS_ID = "statusText";
     const ERROR_ID = "errorBox";
     const SELECT_ID = "lang_selection";
-    const LABEL_LANG_ID = "label-lang";
     const PREVIEW_BTN_ID = "preview-btn";
 
     const I18N = {
-      en: { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`, fail:"Load failed.", title:"PDF Preview" },
-      ja: { lang:"言語", preview:"表示",   idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`, fail:"読み込みに失敗しました", title:"PDFプレビュー" },
+      en: { preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`, fail:"Load failed.", title:"PDF Preview" },
+      ja: { preview:"表示",   idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`, fail:"読み込みに失敗しました", title:"PDFプレビュー" },
+      de: { preview:"Vorschau", idle:"Keine Datei geladen", loading:"Laden…", showing:(l,t)=>`Wird angezeigt: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Laden fehlgeschlagen.", title:"PDF-Vorschau" },
+      fr: { preview:"Aperçu", idle:"Aucun fichier chargé", loading:"Chargement…", showing:(l,t)=>`Affichage : ${l}.pdf${t?` • ${t}s`:''}`, fail:"Échec du chargement.", title:"Aperçu PDF" },
+      es: { preview:"Vista previa", idle:"Ningún archivo cargado", loading:"Cargando…", showing:(l,t)=>`Mostrando: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Error de carga.", title:"Vista previa PDF" },
+      pt: { preview:"Prévia", idle:"Nenhum arquivo carregado", loading:"Carregando…", showing:(l,t)=>`Exibindo: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Falha ao carregar.", title:"Pré-visualização PDF" },
+      it: { preview:"Anteprima", idle:"Nessun file caricato", loading:"Caricamento…", showing:(l,t)=>`In visualizzazione: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Caricamento non riuscito.", title:"Anteprima PDF" },
+      ru: { preview:"Предпросмотр", idle:"Файл не загружен", loading:"Загрузка…", showing:(l,t)=>`Отображается: ${l}.pdf${t?` • ${t}с`:''}`, fail:"Не удалось загрузить.", title:"Предпросмотр PDF" },
+      ar: { preview:"معاينة", idle:"لا ملف محمّل", loading:"جارٍ التحميل…", showing:(l,t)=>`يُعرض: ‎${l}.pdf${t?` • ${t}ث`:''}`, fail:"فشل التحميل.", title:"معاينة PDF" },
+      hi: { preview:"पूर्वावलोकन", idle:"कोई फ़ाइल लोड नहीं", loading:"लोड हो रहा है…", showing:(l,t)=>`दिखा रहा है: ${l}.pdf${t?` • ${t}सेकंड`:''}`, fail:"लोड विफल।", title:"PDF पूर्वावलोकन" },
+      "zh-CN": { preview:"预览", idle:"未加载文件", loading:"正在加载…", showing:(l,t)=>`正在显示：${l}.pdf${t?` • ${t}秒`:''}`, fail:"加载失败。", title:"PDF 预览" },
+      "zh-TW": { preview:"預覽", idle:"未載入檔案", loading:"載入中…", showing:(l,t)=>`顯示中：${l}.pdf${t?` • ${t}秒`:''}`, fail:"載入失敗。", title:"PDF 預覽" },
+      ko: { preview:"미리보기", idle:"파일 미로드", loading:"불러오는 중…", showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`, fail:"로드 실패.", title:"PDF 미리보기" },
     };
 
     document.getElementById(PREVIEW_BTN_ID).addEventListener("click", handlePreview);
@@ -107,7 +112,6 @@
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
 
-    // Android もインラインで見せたいので Docs Viewer を利用
     function buildPreviewUrl(lang){
       const pdf = buildUrl(lang);
       if (isIOS() || isAndroid()){
@@ -150,8 +154,7 @@
 
     function applyI18n(lang){
       const t = I18N[lang] || I18N.en;
-      document.getElementById(LABEL_LANG_ID).textContent = t.lang;   // 左端ラベル
-      document.getElementById(PREVIEW_BTN_ID).textContent = t.preview; // 日本語は「表示」
+      document.getElementById(PREVIEW_BTN_ID).textContent = t.preview;
       document.getElementById(PREVIEW_ID).title = t.title;
     }
 
