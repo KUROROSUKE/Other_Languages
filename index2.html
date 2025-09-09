@@ -4,49 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Multi-language PDF Preview</title>
-  <link rel="preconnect" href="https://kurorosuke.github.io" />
   <style>
     :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; --primary-2:#2a7bd1; }
     *{ box-sizing:border-box }
     body{
-      margin:0; padding:0;
+      margin:0; padding:0; height:100vh; display:flex; flex-direction:column;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
       background:var(--bg); color:var(--text);
-      display:flex; flex-direction:column; height:100vh;
     }
     header{
       padding:10px 16px; background:var(--panel);
-      display:flex; gap:10px; align-items:center;
-      border-bottom:1px solid #1b2a3f;
+      display:flex; gap:10px; align-items:center; border-bottom:1px solid #1b2a3f;
     }
     label{ font-size:14px; color:var(--muted) }
     select{
       appearance:none; background:#0d141e; border:1px solid #24344d;
-      border-radius:8px; color:var(--text);
-      font-size:14px; padding:6px 10px; min-width:180px;
+      border-radius:8px; color:var(--text); font-size:14px; padding:6px 10px; min-width:180px;
     }
     button{
-      appearance:none; border:none; cursor:pointer;
-      padding:7px 14px; border-radius:8px;
-      font-weight:600; font-size:14px;
-      background:var(--primary); color:#07131f;
-      transition:.15s background;
+      appearance:none; border:none; cursor:pointer; padding:7px 14px; border-radius:8px;
+      font-weight:600; font-size:14px; background:var(--primary); color:#07131f; transition:.15s background;
     }
     button:hover{ background:var(--primary-2); }
     .status{ margin-left:auto; font-size:13px; color:var(--muted) }
-    main{ flex:1; display:flex; flex-direction:column }
+    main{ flex:1; display:flex; }
     iframe{ flex:1; width:100%; border:0; background:#0b111a }
-    .error{
-      display:none; color:#ffd1d1; background:#471c1c;
-      border:1px solid #7a2b2b; padding:8px 10px; font-size:13px; margin:8px 16px;
-    }
-    .progress-wrap{ padding:8px 16px; display:none; gap:8px; align-items:center }
-    .bar{ position:relative; flex:1; height:10px; background:#203046; border-radius:999px; overflow:hidden }
-    .fill{ position:absolute; left:0; top:0; height:100%; width:0%; background:#3aa0ff; }
-    .pct{ width:56px; text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px }
-    .hint{ color:var(--muted); font-size:12px; margin:4px 16px }
-    .actions{ padding:0 16px 8px 16px; display:flex; gap:8px }
-    .btn-ghost{ background:#0d141e; color:var(--text); border:1px solid #22334c }
+    .error{ display:none; color:#ffd1d1; background:#471c1c; border:1px solid #7a2b2b; padding:8px 10px; font-size:13px; margin:8px 16px }
   </style>
 </head>
 <body>
@@ -72,19 +55,10 @@
   </header>
 
   <main>
-    <div class="progress-wrap" id="progressWrap" aria-live="polite">
-      <div class="bar"><div class="fill" id="fill"></div></div>
-      <div class="pct" id="pct">0%</div>
-    </div>
-    <div class="actions">
-      <button id="cancel-btn" class="btn-ghost" style="display:none">Cancel</button>
-      <button id="retry-btn" class="btn-ghost" style="display:none">Retry</button>
-    </div>
-    <div class="hint" id="hint" style="display:none">Rendering can take time on iPad. Keep the tab in foreground.</div>
-
-    <iframe id="preview" title="PDF Preview" referrerpolicy="no-referrer"></iframe>
-    <div id="errorBox" class="error">Load failed. Check URL or file existence.</div>
+    <iframe id="preview" title="PDF Preview"></iframe>
   </main>
+
+  <div id="errorBox" class="error">Load failed. Check URL or file existence.</div>
 
   <script>
     // ===== constants =====
@@ -94,42 +68,29 @@
     const ERROR_ID = "errorBox";
     const LABEL_LANG_ID = "label-lang";
     const PREVIEW_BTN_ID = "preview-btn";
-    const CANCEL_ID = "cancel-btn";
-    const RETRY_ID  = "retry-btn";
-    const PROG_WRAP_ID = "progressWrap";
-    const FILL_ID = "fill";
-    const PCT_ID  = "pct";
-    const HINT_ID = "hint";
-    const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf";
+    const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf"; // PDF 置き場（同ドメイン想定）
 
-    // i18n
     const I18N = {
-      "en": { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l)=>`Showing: ${l}.pdf`, fail:"Load failed. Check URL or file existence.", title:"PDF Preview", cancel:"Cancel", retry:"Retry", hint:"Rendering can take time on iPad. Keep the tab in foreground." },
-      "ja": { lang:"言語", preview:"プレビュー", idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l)=>`表示中: ${l}.pdf`, fail:"読み込みに失敗しました。URL を確認してください。", title:"PDF プレビュー", cancel:"中止", retry:"再試行", hint:"iPad では描画に時間がかかることがあります。タブを前面にしてください。" },
-      "de": { lang:"Sprache", preview:"Vorschau", idle:"Keine Datei geladen", loading:"Laden…", showing:(l)=>`Wird angezeigt: ${l}.pdf`, fail:"Laden fehlgeschlagen. URL prüfen.", title:"PDF-Vorschau", cancel:"Abbrechen", retry:"Erneut", hint:"Auf iPad kann das Rendern dauern. Tab im Vordergrund halten." },
-      "fr": { lang:"Langue", preview:"Aperçu", idle:"Aucun fichier chargé", loading:"Chargement…", showing:(l)=>`Affichage : ${l}.pdf`, fail:"Échec du chargement. Vérifiez l’URL.", title:"Aperçu PDF", cancel:"Annuler", retry:"Réessayer", hint:"Le rendu peut être lent sur iPad. Gardez l’onglet au premier plan." },
-      "es": { lang:"Idioma", preview:"Vista previa", idle:"Ningún archivo cargado", loading:"Cargando…", showing:(l)=>`Mostrando: ${l}.pdf`, fail:"Error de carga. Verifique la URL.", title:"Vista previa de PDF", cancel:"Cancelar", retry:"Reintentar", hint:"El renderizado puede tardar en iPad. Mantén la pestaña en primer plano." },
-      "pt": { lang:"Idioma", preview:"Prévia", idle:"Nenhum arquivo carregado", loading:"Carregando…", showing:(l)=>`Exibindo: ${l}.pdf`, fail:"Falha ao carregar. Verifique a URL.", title:"Pré-visualização de PDF", cancel:"Cancelar", retry:"Tentar novamente", hint:"Em iPad o render pode demorar. Mantenha a aba em primeiro plano." },
-      "it": { lang:"Lingua", preview:"Anteprima", idle:"Nessun file caricato", loading:"Caricamento…", showing:(l)=>`In visualizzazione: ${l}.pdf`, fail:"Caricamento non riuscito. Verifica l’URL.", title:"Anteprima PDF", cancel:"Annulla", retry:"Riprova", hint:"Su iPad il rendering può richiedere tempo. Mantieni la scheda in primo piano." },
-      "ru": { lang:"Язык", preview:"Предпросмотр", idle:"Файл не загружен", loading:"Загрузка…", showing:(l)=>`Отображается: ${l}.pdf`, fail:"Не удалось загрузить. Проверьте URL.", title:"Предпросмотр PDF", cancel:"Отмена", retry:"Повтор", hint:"На iPad отрисовка может занять время. Держите вкладку на переднем плане." },
-      "ar": { lang:"اللغة", preview:"معاينة", idle:"لا ملف محمّل", loading:"جارٍ التحميل…", showing:(l)=>`يُعرض: ‎${l}.pdf`, fail:"فشل التحميل. تحقق من الرابط.", title:"معاينة PDF", cancel:"إلغاء", retry:"إعادة", hint:"قد يستغرق العرض وقتًا على iPad. أبقِ التبويب في الواجهة." },
-      "hi": { lang:"भाषा", preview:"पूर्वावलोकन", idle:"कोई फ़ाइल लोड नहीं", loading:"लोड हो रहा है…", showing:(l)=>`दिखा रहा है: ${l}.pdf`, fail:"लोड विफल। URL जाँचें.", title:"PDF पूर्वावलोकन", cancel:"रद्द", retry:"फिर से", hint:"iPad पर रेंडरिंग में समय लग सकता है। टैब को अग्रभूमि में रखें।" },
-      "zh-CN": { lang:"语言", preview:"预览", idle:"未加载文件", loading:"正在加载…", showing:(l)=>`正在显示：${l}.pdf`, fail:"加载失败。请检查链接。", title:"PDF 预览", cancel:"取消", retry:"重试", hint:"在 iPad 上渲染可能较慢。请保持页面前台。"},
-      "zh-TW": { lang:"語言", preview:"預覽", idle:"未載入檔案", loading:"載入中…", showing:(l)=>`顯示中：${l}.pdf`, fail:"載入失敗。請檢查連結。", title:"PDF 預覽", cancel:"取消", retry:"重試", hint:"在 iPad 上繪製可能較慢。請保持分頁在前景。" },
-      "ko": { lang:"언어", preview:"미리보기", idle:"파일 미로드", loading:"불러오는 중…", showing:(l)=>`표시 중: ${l}.pdf`, fail:"로드 실패. URL 확인.", title:"PDF 미리보기", cancel:"취소", retry:"다시 시도", hint:"iPad에서 렌더링이 오래 걸릴 수 있습니다. 탭을 전경에 두세요." },
+      "en": { lang:"Language", preview:"Preview", idle:"No file loaded", loading:"Loading…", showing:(l)=>`Showing: ${l}.pdf`, fail:"Load failed. Check URL or file existence.", title:"PDF Preview" },
+      "ja": { lang:"言語", preview:"プレビュー", idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l)=>`表示中: ${l}.pdf`, fail:"読み込みに失敗しました。URL を確認してください。", title:"PDF プレビュー" },
+      "de": { lang:"Sprache", preview:"Vorschau", idle:"Keine Datei geladen", loading:"Laden…", showing:(l)=>`Wird angezeigt: ${l}.pdf`, fail:"Laden fehlgeschlagen. URL prüfen.", title:"PDF-Vorschau" },
+      "fr": { lang:"Langue", preview:"Aperçu", idle:"Aucun fichier chargé", loading:"Chargement…", showing:(l)=>`Affichage : ${l}.pdf`, fail:"Échec du chargement. Vérifiez l’URL.", title:"Aperçu PDF" },
+      "es": { lang:"Idioma", preview:"Vista previa", idle:"Ningún archivo cargado", loading:"Cargando…", showing:(l)=>`Mostrando: ${l}.pdf`, fail:"Error de carga. Verifique la URL.", title:"Vista previa de PDF" },
+      "pt": { lang:"Idioma", preview:"Prévia", idle:"Nenhum arquivo carregado", loading:"Carregando…", showing:(l)=>`Exibindo: ${l}.pdf`, fail:"Falha ao carregar. Verifique a URL.", title:"Pré-visualização de PDF" },
+      "it": { lang:"Lingua", preview:"Anteprima", idle:"Nessun file caricato", loading:"Caricamento…", showing:(l)=>`In visualizzazione: ${l}.pdf`, fail:"Caricamento non riuscito. Verifica l’URL.", title:"Anteprima PDF" },
+      "ru": { lang:"Язык", preview:"Предпросмотр", idle:"Файл не загружен", loading:"Загрузка…", showing:(l)=>`Отображается: ${l}.pdf`, fail:"Не удалось загрузить. Проверьте URL.", title:"Предпросмотр PDF" },
+      "ar": { lang:"اللغة", preview:"معاينة", idle:"لا ملف محمّل", loading:"جارٍ التحميل…", showing:(l)=>`يُعرض: ‎${l}.pdf`, fail:"فشل التحميل. تحقق من الرابط.", title:"معاينة PDF" },
+      "hi": { lang:"भाषा", preview:"पूर्वावलोकन", idle:"कोई फ़ाइल लोड नहीं", loading:"लोड हो रहा है…", showing:(l)=>`दिखा रहा है: ${l}.pdf`, fail:"लोड विफल। URL जाँचें.", title:"PDF पूर्वावलोकन" },
+      "zh-CN": { lang:"语言", preview:"预览", idle:"未加载文件", loading:"正在加载…", showing:(l)=>`正在显示：${l}.pdf`, fail:"加载失败。请检查链接。", title:"PDF 预览" },
+      "zh-TW": { lang:"語言", preview:"預覽", idle:"未載入檔案", loading:"載入中…", showing:(l)=>`顯示中：${l}.pdf`, fail:"載入失敗。請檢查連結。", title:"PDF 預覽" },
+      "ko": { lang:"언어", preview:"미리보기", idle:"파일 미로드", loading:"불러오는 중…", showing:(l)=>`표시 중: ${l}.pdf`, fail:"로드 실패. URL 확인.", title:"PDF 미리보기" },
     };
 
-    // init
-    document.getElementById("preview-btn").addEventListener("click", handlePreview);
-    document.getElementById("lang_selection").addEventListener("change", handleLangChange);
-    document.getElementById("cancel-btn").addEventListener("click", cancelLoading);
-    document.getElementById("retry-btn").addEventListener("click", handlePreview);
+    // ===== init =====
+    document.getElementById(PREVIEW_BTN_ID).addEventListener("click", handlePreview);
+    document.getElementById(SELECT_ID).addEventListener("change", handleLangChange);
     document.addEventListener("keydown", (e)=>{ if(e.key==="Enter") handlePreview(); });
     initUI();
-
-    // state
-    let currentAbort = null;
-    let currentBlobURL = null;
 
     // ===== functions =====
     function initUI(){
@@ -137,126 +98,60 @@
       setStatus(getMsg("idle"));
       setPreviewTitle();
       setHtmlLang(getSelectedLang());
-      setHintVisibility(false);
     }
 
     function getSelectedLang(){
-      return document.getElementById("lang_selection").value;
+      return document.getElementById(SELECT_ID).value;
     }
 
     function buildUrl(lang){
       return `${BASE_URL}/${lang}.pdf`;
     }
 
+    // 重要: iOS はローカル同梱の PDF.js ビューアを使用（複数ページ＋正しいレイアウト＋テキスト選択）
+    function buildPreviewUrl(lang){
+      const pdf = buildUrl(lang);
+      if(isIOS()){
+        const enc = encodeURIComponent(pdf);
+        // リポジトリ直下に配置した pdfjs を参照（同一オリジン）
+        return `/pdfjs/web/viewer.html?file=${enc}#zoom=page-width`;
+      }
+      // それ以外はネイティブ表示
+      return `${pdf}#view=FitH`;
+    }
+
     async function handlePreview(){
       clearError();
-      setHintVisibility(isIOS());
       const lang = getSelectedLang();
-      const url  = buildUrl(lang);
-
-      // 既存ダウンロードを中断
-      cancelLoading();
-
+      const rawUrl  = buildUrl(lang);         // 存在チェック
+      const viewUrl = buildPreviewUrl(lang);  // 表示URL
       setStatus(getMsg("loading"));
-      showProgress(true);
-      toggleActions({ cancel:true, retry:false });
+
+      // タイムアウト付きフォールバック: iOS で viewer が描画できない場合は新規タブで開く
+      const FAIL_SAFE_MS = 8000;
 
       try{
-        // 進捗付きで取得 → Blob URL にして埋め込む（描画開始は遅いが見える進捗）
-        const blob = await fetchWithProgress(url, onProgress);
-        if(!blob) throw new Error("fetch failed");
+        const ok = await headOk(rawUrl);
+        if(!ok) throw new Error("not found");
 
-        // 既存の blob URL を解放
-        if(currentBlobURL){ URL.revokeObjectURL(currentBlobURL); }
-        currentBlobURL = URL.createObjectURL(blob);
+        const iframe = document.getElementById(PREVIEW_ID);
+        let timer = null;
 
-        // iOS でも iframe に blob は表示可能（時間はかかる）
-        document.getElementById("preview").src = currentBlobURL;
+        if(isIOS()){
+          timer = setTimeout(()=> {
+            // フォールバック（ネイティブビューア）
+            window.open(rawUrl, "_blank");
+          }, FAIL_SAFE_MS);
+        }
+
+        iframe.src = viewUrl;
+
+        iframe.onload = () => { if(timer) clearTimeout(timer); };
         setStatus(getMsg("showing")(lang));
-        toggleActions({ cancel:false, retry:false });
-      }catch(e){
+      }catch{
         setStatus(getMsg("fail"));
         showError(getMsg("fail"));
-        toggleActions({ cancel:false, retry:true });
-      }finally{
-        showProgress(false);
       }
-
-      // 進捗表示更新
-      function onProgress(loaded, total){
-        updateProgress(total ? Math.round((loaded/total)*100) : null);
-      }
-    }
-
-    // 進捗付き fetch（ReadableStream を利用）
-    async function fetchWithProgress(url, onProgress){
-      try{
-        currentAbort = new AbortController();
-        const res = await fetch(url, { signal: currentAbort.signal, cache:"no-store" });
-        if(!res.ok) return null;
-
-        const total = Number(res.headers.get("Content-Length")) || 0;
-        if(!res.body || !('getReader' in res.body)) {
-          // ストリーム非対応ブラウザ: そのまま Blob
-          const blob = await res.blob();
-          onProgress(total, total);
-          return blob;
-        }
-
-        const reader = res.body.getReader();
-        const chunks = [];
-        let loaded = 0;
-        while(true){
-          const {done, value} = await reader.read();
-          if(done) break;
-          chunks.push(value);
-          loaded += value.byteLength;
-          onProgress(loaded, total);
-        }
-        return new Blob(chunks, { type:"application/pdf" });
-      }catch(e){
-        return null;
-      }finally{
-        currentAbort = null;
-      }
-    }
-
-    function cancelLoading(){
-      if(currentAbort){ currentAbort.abort(); currentAbort = null; }
-      updateProgress(0);
-      showProgress(false);
-      toggleActions({ cancel:false, retry:true });
-    }
-
-    function toggleActions({cancel, retry}){
-      document.getElementById(CANCEL_ID).style.display = cancel ? "inline-flex" : "none";
-      document.getElementById(RETRY_ID).style.display  = retry  ? "inline-flex" : "none";
-      document.getElementById(CANCEL_ID).textContent = getMsg("cancel");
-      document.getElementById(RETRY_ID).textContent  = getMsg("retry");
-    }
-
-    function updateProgress(pct){
-      const wrap = document.getElementById(PROG_WRAP_ID);
-      const fill = document.getElementById(FILL_ID);
-      const pctEl= document.getElementById(PCT_ID);
-      if(pct == null){
-        fill.style.width = "100%";
-        fill.style.animation = "ind 1.2s linear infinite";
-        pctEl.textContent = "--";
-      }else{
-        fill.style.animation = "none";
-        fill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-        pctEl.textContent = `${pct}%`;
-      }
-    }
-
-    function showProgress(v){
-      document.getElementById(PROG_WRAP_ID).style.display = v ? "flex" : "none";
-    }
-
-    function setHintVisibility(v){
-      document.getElementById(HINT_ID).style.display = v ? "block" : "none";
-      document.getElementById(HINT_ID).textContent = getMsg("hint");
     }
 
     function handleLangChange(){
@@ -296,6 +191,11 @@
       document.getElementById(ERROR_ID).style.display = "none";
     }
 
+    async function headOk(url){
+      try{ const res = await fetch(url, { method:"HEAD", cache:"no-store" }); return res.ok; }
+      catch{ return false; }
+    }
+
     function isIOS(){
       const ua = navigator.userAgent || navigator.vendor || "";
       const iOS = /iPad|iPhone|iPod/.test(ua);
@@ -305,7 +205,7 @@
 
     function setHtmlLang(lang){
       document.documentElement.lang = lang;
-      document.documentElement.dir = "ltr";
+      document.documentElement.dir = "ltr"; // 反転しない
     }
   </script>
 </body>
