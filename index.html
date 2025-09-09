@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Multi-language PDF Preview</title>
   <style>
-    :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; --primary-2:#2a7bd1; }
+    :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; }
     *{ box-sizing:border-box; margin:0; padding:0; }
 
     html, body{
@@ -25,18 +25,15 @@
       text-align:left; text-align-last:left; direction:ltr;
     }
 
-    /* ETA row */
     .eta{
       flex:0 0 auto; display:flex; align-items:center; gap:10px;
       padding:8px 16px; background:#0d141e; border-bottom:1px solid #1b2a3f;
     }
     .bar{ position:relative; flex:1; height:10px; background:#203046; border-radius:999px; overflow:hidden }
-    .fill{ position:absolute; inset:0 auto 0 0; width:0%; background:#3aa0ff; transition:width .2s linear }
+    .fill{ position:absolute; inset:0 auto 0 0; width:0%; background:var(--primary); transition:width .2s linear }
     .indet{
-      background:linear-gradient(90deg, transparent 0%, #3aa0ff 50%, transparent 100%);
-      background-size:200% 100%;
-      animation: move 1.2s linear infinite;
-      width:40%;
+      background:linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
+      background-size:200% 100%; animation:move 1.2s linear infinite; width:40%;
     }
     @keyframes move{ from{ transform:translateX(-50%) } to{ transform:translateX(150%) } }
     .etatext{ width:160px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px }
@@ -49,13 +46,6 @@
       flex:0 0 auto; padding:10px 16px; background:var(--panel); border-top:1px solid #1b2a3f;
       font-size:13px; color:var(--muted);
     }
-
-    .error{
-      display:none; color:#ffd1d1; background:#471c1c;
-      border:1px solid #7a2b2b; padding:8px 10px; font-size:13px; margin:8px 16px; flex:0 0 auto;
-    }
-
-    @media (max-width:520px){ select{ width:180px; } }
   </style>
 </head>
 <body>
@@ -71,8 +61,8 @@
       <option value="ru">🇷🇺 Русский</option>
       <option value="ar">🇸🇦 العربية</option>
       <option value="hi">🇮🇳 हिन्दी</option>
-      <option value="zh-CN">🇨🇳 简体中文</option>
-      <option value="zh-TW">🇹🇼 繁體中文</option>
+      <option value="cn">🇨🇳 简体中文</option>
+      <option value="tw">🇹🇼 繁體中文</option>
       <option value="ko">🇰🇷 한국어</option>
     </select>
   </header>
@@ -85,7 +75,6 @@
 
   <main>
     <iframe id="preview" title="PDF Preview" referrerpolicy="no-referrer"></iframe>
-    <div id="errorBox" class="error">Load failed. Check URL or file existence.</div>
   </main>
 
   <footer id="statusText">No file loaded</footer>
@@ -94,55 +83,61 @@
     const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf";
     const PREVIEW_ID = "preview";
     const STATUS_ID = "statusText";
-    const ERROR_ID = "errorBox";
     const SELECT_ID = "lang_selection";
     const ETA_ROW_ID = "etaRow";
     const ETA_FILL_ID = "etaFill";
     const ETA_TEXT_ID = "etaText";
 
     const I18N = {
-      en: { idle:"No file loaded", loading:"Loading…", showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`, fail:"Load failed.", title:"PDF Preview", eta:"ETA" },
-      ja: { idle:"ファイル未読み込み", loading:"読み込み中…", showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`, fail:"読み込みに失敗しました", title:"PDFプレビュー", eta:"残り" },
-      de: { idle:"Keine Datei geladen", loading:"Laden…", showing:(l,t)=>`Wird angezeigt: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Laden fehlgeschlagen.", title:"PDF-Vorschau", eta:"Rest" },
-      fr: { idle:"Aucun fichier chargé", loading:"Chargement…", showing:(l,t)=>`Affichage : ${l}.pdf${t?` • ${t}s`:''}`, fail:"Échec du chargement.", title:"Aperçu PDF", eta:"Reste" },
-      es: { idle:"Ningún archivo cargado", loading:"Cargando…", showing:(l,t)=>`Mostrando: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Error de carga.", title:"Vista previa PDF", eta:"Faltan" },
-      pt: { idle:"Nenhum arquivo carregado", loading:"Carregando…", showing:(l,t)=>`Exibindo: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Falha ao carregar.", title:"Pré-visualização PDF", eta:"Restante" },
-      it: { idle:"Nessun file caricato", loading:"Caricamento…", showing:(l,t)=>`In visualizzazione: ${l}.pdf${t?` • ${t}s`:''}`, fail:"Caricamento non riuscito.", title:"Anteprima PDF", eta:"Rimanente" },
-      ru: { idle:"Файл не загружен", loading:"Загрузка…", showing:(l,t)=>`Отображается: ${l}.pdf${t?` • ${t}с`:''}`, fail:"Не удалось загрузить.", title:"Предпросмотр PDF", eta:"Осталось" },
-      ar: { idle:"لا ملف محمّل", loading:"جارٍ التحميل…", showing:(l,t)=>`يُعرض: ‎${l}.pdf${t?` • ${t}ث`:''}`, fail:"فشل التحميل.", title:"معاينة PDF", eta:"المتبقي" },
-      hi: { idle:"कोई फ़ाइल लोड नहीं", loading:"लोड हो रहा है…", showing:(l,t)=>`दिखा रहा है: ${l}.pdf${t?` • ${t}सेकंड`:''}`, fail:"लोड विफल।", title:"PDF पूर्वावलोकन", eta:"शेष" },
-      "zh-CN": { idle:"未加载文件", loading:"正在加载…", showing:(l,t)=>`正在显示：${l}.pdf${t?` • ${t}秒`:''}`, fail:"加载失败。", title:"PDF 预览", eta:"剩余" },
-      "zh-TW": { idle:"未載入檔案", loading:"載入中…", showing:(l,t)=>`顯示中：${l}.pdf${t?` • ${t}秒`:''}`, fail:"載入失敗。", title:"PDF 預覽", eta:"剩餘" },
-      ko: { idle:"파일 미로드", loading:"불러오는 중…", showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`, fail:"로드 실패.", title:"PDF 미리보기", eta:"남음" },
+      en:{idle:"No file loaded",loading:"Loading…",showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`,fail:"Load failed. Please try again.",title:"PDF Preview",eta:"ETA"},
+      ja:{idle:"ファイル未読み込み",loading:"読み込み中…",showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`,fail:"読み込みに失敗しました。再度お試しください。",title:"PDFプレビュー",eta:"残り"},
+      de:{idle:"Keine Datei geladen",loading:"Laden…",showing:(l,t)=>`Wird angezeigt: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Laden fehlgeschlagen. Bitte erneut versuchen.",title:"PDF-Vorschau",eta:"Rest"},
+      fr:{idle:"Aucun fichier chargé",loading:"Chargement…",showing:(l,t)=>`Affichage : ${l}.pdf${t?` • ${t}s`:''}`,fail:"Échec du chargement. Réessayez.",title:"Aperçu PDF",eta:"Reste"},
+      es:{idle:"Ningún archivo cargado",loading:"Cargando…",showing:(l,t)=>`Mostrando: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Error de carga. Inténtalo de nuevo.",title:"Vista previa PDF",eta:"Faltan"},
+      pt:{idle:"Nenhum arquivo carregado",loading:"Carregando…",showing:(l,t)=>`Exibindo: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Falha ao carregar. Tente novamente.",title:"Pré-visualização PDF",eta:"Restante"},
+      it:{idle:"Nessun file caricato",loading:"Caricamento…",showing:(l,t)=>`In visualizzazione: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Caricamento non riuscito. Riprova.",title:"Anteprima PDF",eta:"Rimanente"},
+      ru:{idle:"Файл не загружен",loading:"Загрузка…",showing:(l,t)=>`Отображается: ${l}.pdf${t?` • ${t}с`:''}`,fail:"Не удалось загрузить. Повторите попытку.",title:"Предпросмотр PDF",eta:"Осталось"},
+      ar:{idle:"لا ملف محمّل",loading:"جارٍ التحميل…",showing:(l,t)=>`يُعرض: ‎${l}.pdf${t?` • ${t}ث`:''}`,fail:"فشل التحميل. حاول مجدداً.",title:"معاينة PDF",eta:"المتبقي"},
+      hi:{idle:"कोई फ़ाइल लोड नहीं",loading:"लोड हो रहा है…",showing:(l,t)=>`दिखा रहा है: ${l}.pdf${t?` • ${t}सेकंड`:''}`,fail:"लोड विफल। पुनः प्रयास करें।",title:"PDF पूर्वावलोकन",eta:"शेष"},
+      cn:{idle:"未加载文件",loading:"正在加载…",showing:(l,t)=>`正在显示：${l}.pdf${t?` • ${t}秒`:''}`,fail:"加载失败。请重试。",title:"PDF 预览",eta:"剩余"},
+      tw:{idle:"未載入檔案",loading:"載入中…",showing:(l,t)=>`顯示中：${l}.pdf${t?` • ${t}秒`:''}`,fail:"載入失敗。請再試一次。",title:"PDF 預覽",eta:"剩餘"},
+      ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음"},
     };
 
+    const RENDER_GRACE_SEC = 3;   // ダウンロード完了→描画までの猶予
+    const MAX_RENDER_RETRY = 3;   // 自動再試行 最大3回（初回＋再試行2回）
+
     document.getElementById(SELECT_ID).addEventListener("change", () => {
-      handlePreview(getSelectedLang());
+      previewWithAutoRecovery(getSelectedLang());
     });
     window.addEventListener("DOMContentLoaded", () => {
       document.getElementById(SELECT_ID).value = "en";
-      handlePreview("en");
+      previewWithAutoRecovery("en");
     });
 
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
-    function buildPreviewUrl(lang){
+
+    function primaryViewer(lang){
       const pdf = buildUrl(lang);
-      if (isIOS() || isAndroid()){
-        return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
-      }
-      return pdf;
+      return (isIOS() || isAndroid())
+        ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`
+        : pdf;
+    }
+    function fallbackViewer(lang, currentUrl){
+      const pdf = buildUrl(lang);
+      const gview = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
+      const isGview = currentUrl && currentUrl.startsWith("https://docs.google.com/gview?");
+      return isGview ? pdf : gview;
     }
 
-    // ------- ETA ------- //
+    // ===== ETA =====
     let etaAbort = null;
-    function startEta(url){
+    function startEta(url, onComplete){
       const row  = document.getElementById(ETA_ROW_ID);
       const fill = document.getElementById(ETA_FILL_ID);
       const txt  = document.getElementById(ETA_TEXT_ID);
-      row.hidden = false;
-      fill.classList.remove('indet');
-      fill.style.width = "0%";
+      row.hidden = false; fill.classList.remove('indet'); fill.style.width = "0%";
       txt.textContent = `${getMsg('eta')}: …`;
 
       etaAbort = new AbortController();
@@ -155,24 +150,24 @@
           total = Number(res.headers.get('Content-Length')) || 0;
 
           if(!res.body || !('getReader' in res.body) || total === 0){
-            // ストリーム不可 or サイズ不明 → 不確定アニメーション
+            // ストリーム不可 / サイズ不明 → 不確定アニメーション
             fill.classList.add('indet');
-            txt.textContent = `${getMsg('eta')}: …`;
             return;
           }
 
           const rdr = res.body.getReader();
-          const pump = () => rdr.read().then(({done, value})=>{
+          const pump = () => rdr.read().then(({done,value})=>{
             if(done){
               fill.style.width = "100%";
               txt.textContent = `${getMsg('eta')}: 0s`;
+              onComplete && onComplete();      // ダウンロード完了通知
               return;
             }
             loaded += value.byteLength;
-            const dt = (performance.now() - started)/1000; // s
-            const speed = loaded / Math.max(dt, 0.001);     // B/s
+            const dt = (performance.now() - started)/1000;
+            const speed = loaded / Math.max(dt, 0.001);
             const remain = Math.max(total - loaded, 0);
-            const eta = remain / Math.max(speed, 1);        // s
+            const eta = remain / Math.max(speed, 1);
             const pct = Math.min(100, Math.round(loaded/total*100));
             fill.style.width = pct + "%";
             txt.textContent = `${getMsg('eta')}: ${formatEta(eta)}`;
@@ -180,15 +175,13 @@
           });
           return pump();
         })
-        .catch(()=>{ /* ネットワーク失敗時は非表示にしない。onloadで止める */ });
+        .catch(()=>{ /* 無視。リトライ側で対応 */ });
     }
     function stopEta(){
       if(etaAbort){ try{ etaAbort.abort(); }catch{} etaAbort = null; }
-      const row  = document.getElementById(ETA_ROW_ID);
-      row.hidden = true;
+      document.getElementById(ETA_ROW_ID).hidden = true;
       const fill = document.getElementById(ETA_FILL_ID);
-      fill.classList.remove('indet');
-      fill.style.width = "0%";
+      fill.classList.remove('indet'); fill.style.width = "0%";
     }
     function formatEta(sec){
       if(!isFinite(sec) || sec <= 0) return "0s";
@@ -197,41 +190,100 @@
       return `${m}m ${s}s`;
     }
 
-    // ------- Preview flow ------- //
-    function handlePreview(lang){
-      clearError();
-      const pdfUrl  = buildUrl(lang);
-      const viewUrl = buildPreviewUrl(lang);
-      const iframe  = document.getElementById(PREVIEW_ID);
+    // ===== プレビュー + 自動回復 =====
+    function previewWithAutoRecovery(lang){
+      const iframe = document.getElementById(PREVIEW_ID);
+      const pdfUrl = buildUrl(lang);
+      let viewUrl = primaryViewer(lang);
+      let attempt = 0;
 
-      setStatus(getMsg("loading"));
-
-      // ETA開始（PDF本体を並行計測）
-      startEta(pdfUrl);
-
-      const t0 = performance.now();
-      const onLoaded = () => {
-        const dur = ((performance.now()-t0)/1000).toFixed(1);
-        setStatus(getMsg("showing")(lang, dur));
+      const loadOnce = (changeViewer=false) => new Promise(resolve=>{
+        setStatus(getMsg("loading"));
         stopEta();
-        iframe.removeEventListener("load", onLoaded);
-      };
-      iframe.addEventListener("load", onLoaded);
 
-      // 読み込み開始
-      iframe.src = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
-      iframe.title = getMsg("title");
+        let graceTimer = null;
+
+        // ダウンロード完了 → 猶予3秒待って onload 来なければ失敗扱い
+        startEta(pdfUrl, () => {
+          graceTimer = setTimeout(()=>{
+            resolve({ ok:false, reason:"render-stall" });
+          }, RENDER_GRACE_SEC * 1000);
+        });
+
+        const t0 = performance.now();
+        const onLoad = () => {
+          if(graceTimer) clearTimeout(graceTimer);
+          const dur = ((performance.now()-t0)/1000).toFixed(1);
+          setStatus(getMsg("showing")(lang, dur));
+          stopEta();
+          cleanup();
+          resolve({ ok:true });
+        };
+        const onError = () => {
+          if(graceTimer) clearTimeout(graceTimer);
+          stopEta();
+          cleanup();
+          resolve({ ok:false, reason:"error" });
+        };
+        function cleanup(){
+          iframe.removeEventListener("load", onLoad);
+          iframe.removeEventListener("error", onError);
+        }
+
+        iframe.addEventListener("load", onLoad);
+        iframe.addEventListener("error", onError);
+
+        // ビューワ切替
+        if(changeViewer){
+          viewUrl = fallbackViewer(lang, viewUrl);
+        }
+
+        // キャッシュ回避つき読み込み
+        iframe.src = "about:blank";
+        requestAnimationFrame(()=>{
+          iframe.src = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
+          iframe.title = getMsg("title");
+        });
+      });
+
+      const run = () => {
+        loadOnce(false).then(r=>{
+          if(r.ok) return;
+          attempt++;
+          if(attempt >= MAX_RENDER_RETRY){
+            stopEta();
+            setStatus(getMsg("fail")); // 失敗表示のみ
+            return;
+          }
+          // 2回目以降はビューワ切替を含めて再試行
+          const change = (attempt >= 2);
+          setTimeout(()=> runAttempt(change), 500);
+        });
+      };
+      const runAttempt = (changeViewer) => {
+        loadOnce(changeViewer).then(r=>{
+          if(r.ok) return;
+          attempt++;
+          if(attempt >= MAX_RENDER_RETRY){
+            stopEta();
+            setStatus(getMsg("fail"));
+            return;
+          }
+          const nextChange = (attempt >= 2);
+          setTimeout(()=> runAttempt(nextChange), 700);
+        });
+      };
+
+      run();
     }
 
-    // ------- UI helpers ------- //
+    // ===== ユーティリティ =====
     function getMsg(key){
       const lang = getSelectedLang();
       return (I18N[lang] || I18N.en)[key] || I18N.en[key];
     }
     function setStatus(text){ document.getElementById(STATUS_ID).textContent = text; }
-    function clearError(){ document.getElementById(ERROR_ID).style.display="none"; }
 
-    // ------- UA ------- //
     function isIOS(){
       const ua = navigator.userAgent || navigator.vendor || "";
       const iOS = /iPad|iPhone|iPod/.test(ua);
