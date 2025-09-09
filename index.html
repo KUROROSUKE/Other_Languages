@@ -104,8 +104,21 @@
       ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음"},
     };
 
-    const RENDER_GRACE_SEC = 2;   // ダウンロード完了 → 描画までの猶予(秒)
-    const MAX_RENDER_RETRY = 3;   // 自動再試行 最大3回（初回＋再試行2回）
+    const RENDER_GRACE_SEC = 2;   // ダウンロード完了→描画までの猶予秒数
+    const MAX_RENDER_RETRY = 3;   // 自動再試行回数
+
+    // ===== setStatus with auto-clear =====
+    let __statusTimer = null;
+    function setStatus(text, { persist = false, clearAfter = 4000 } = {}) {
+      const el = document.getElementById(STATUS_ID);
+      el.textContent = text;
+      if (__statusTimer) { clearTimeout(__statusTimer); __statusTimer = null; }
+      if (!persist) {
+        __statusTimer = setTimeout(() => {
+          if (el.textContent === text) el.textContent = "";
+        }, clearAfter);
+      }
+    }
 
     document.getElementById(SELECT_ID).addEventListener("change", () => {
       previewWithAutoRecovery(getSelectedLang());
@@ -150,7 +163,6 @@
           total = Number(res.headers.get('Content-Length')) || 0;
 
           if(!res.body || !('getReader' in res.body) || total === 0){
-            // ストリーム不可 / サイズ不明 → 不確定アニメーション
             fill.classList.add('indet');
             return;
           }
@@ -160,7 +172,7 @@
             if(done){
               fill.style.width = "100%";
               txt.textContent = `${getMsg('eta')}: 0s`;
-              onComplete && onComplete();      // ダウンロード完了通知
+              onComplete && onComplete();
               return;
             }
             loaded += value.byteLength;
@@ -175,7 +187,7 @@
           });
           return pump();
         })
-        .catch(()=>{ /* 無視。リトライ側で対応 */ });
+        .catch(()=>{});
     }
     function stopEta(){
       if(etaAbort){ try{ etaAbort.abort(); }catch{} etaAbort = null; }
@@ -190,7 +202,7 @@
       return `${m}m ${s}s`;
     }
 
-    // ===== プレビュー + 自動回復 =====
+    // ===== Preview + Auto Recovery =====
     function previewWithAutoRecovery(lang){
       const iframe = document.getElementById(PREVIEW_ID);
       const pdfUrl = buildUrl(lang);
@@ -198,12 +210,10 @@
       let attempt = 0;
 
       const loadOnce = (changeViewer=false) => new Promise(resolve=>{
-        setStatus(getMsg("loading"));
+        setStatus(getMsg("loading"), { persist:true });
         stopEta();
 
         let graceTimer = null;
-
-        // ダウンロード完了 → 猶予3秒待って onload 来なければ失敗扱い
         startEta(pdfUrl, () => {
           graceTimer = setTimeout(()=>{
             resolve({ ok:false, reason:"render-stall" });
@@ -214,7 +224,7 @@
         const onLoad = () => {
           if(graceTimer) clearTimeout(graceTimer);
           const dur = ((performance.now()-t0)/1000).toFixed(1);
-          setStatus(getMsg("showing")(lang, dur));
+          setStatus(getMsg("showing")(lang, dur), { persist:false, clearAfter:4000 });
           stopEta();
           cleanup();
           resolve({ ok:true });
@@ -233,12 +243,8 @@
         iframe.addEventListener("load", onLoad);
         iframe.addEventListener("error", onError);
 
-        // ビューワ切替
-        if(changeViewer){
-          viewUrl = fallbackViewer(lang, viewUrl);
-        }
+        if(changeViewer){ viewUrl = fallbackViewer(lang, viewUrl); }
 
-        // キャッシュ回避つき読み込み
         iframe.src = "about:blank";
         requestAnimationFrame(()=>{
           iframe.src = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
@@ -252,10 +258,9 @@
           attempt++;
           if(attempt >= MAX_RENDER_RETRY){
             stopEta();
-            setStatus(getMsg("fail")); // 失敗表示のみ
+            setStatus(getMsg("fail"), { persist:true });
             return;
           }
-          // 2回目以降はビューワ切替を含めて再試行
           const change = (attempt >= 2);
           setTimeout(()=> runAttempt(change), 500);
         });
@@ -266,7 +271,7 @@
           attempt++;
           if(attempt >= MAX_RENDER_RETRY){
             stopEta();
-            setStatus(getMsg("fail"));
+            setStatus(getMsg("fail"), { persist:true });
             return;
           }
           const nextChange = (attempt >= 2);
@@ -277,12 +282,11 @@
       run();
     }
 
-    // ===== ユーティリティ =====
     function getMsg(key){
       const lang = getSelectedLang();
       return (I18N[lang] || I18N.en)[key] || I18N.en[key];
     }
-    function setStatus(text){ document.getElementById(STATUS_ID).textContent = text; }
+    function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
 
     function isIOS(){
       const ua = navigator.userAgent || navigator.vendor || "";
