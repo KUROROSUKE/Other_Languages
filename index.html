@@ -104,7 +104,7 @@
       ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음"},
     };
 
-    const RENDER_GRACE_SEC = 2;   // ダウンロード完了→描画までの猶予秒数
+    const RENDER_GRACE_SEC = 2;   // ダウンロード完了→描画までの猶予秒
     const MAX_RENDER_RETRY = 3;   // 自動再試行回数
 
     // ===== setStatus with auto-clear =====
@@ -131,17 +131,24 @@
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
 
+    // iOSは viewerng 優先、Android は gview、PC は直PDF
     function primaryViewer(lang){
       const pdf = buildUrl(lang);
-      return (isIOS() || isAndroid())
-        ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`
-        : pdf;
+      const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
+      const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
+      if (isIOS()) return viewerng;
+      if (isAndroid()) return gview;
+      return pdf;
     }
     function fallbackViewer(lang, currentUrl){
       const pdf = buildUrl(lang);
-      const gview = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
-      const isGview = currentUrl && currentUrl.startsWith("https://docs.google.com/gview?");
-      return isGview ? pdf : gview;
+      const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
+      const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
+      const isGview   = currentUrl?.startsWith("https://docs.google.com/gview?");
+      const isViewerN = currentUrl?.startsWith("https://drive.google.com/viewerng/");
+      if (isGview)   return viewerng; // gview→viewerng
+      if (isViewerN) return pdf;      // viewerng→直PDF
+      return gview;                   // 直PDF→gview
     }
 
     // ===== ETA =====
@@ -163,7 +170,7 @@
           total = Number(res.headers.get('Content-Length')) || 0;
 
           if(!res.body || !('getReader' in res.body) || total === 0){
-            fill.classList.add('indet');
+            fill.classList.add('indet'); // サイズ不明 → 不確定アニメ
             return;
           }
 
@@ -172,7 +179,7 @@
             if(done){
               fill.style.width = "100%";
               txt.textContent = `${getMsg('eta')}: 0s`;
-              onComplete && onComplete();
+              onComplete && onComplete(); // ダウンロード完了通知
               return;
             }
             loaded += value.byteLength;
@@ -187,7 +194,7 @@
           });
           return pump();
         })
-        .catch(()=>{});
+        .catch(()=>{ /* 無視（再試行側で対応） */ });
     }
     function stopEta(){
       if(etaAbort){ try{ etaAbort.abort(); }catch{} etaAbort = null; }
@@ -245,11 +252,19 @@
 
         if(changeViewer){ viewUrl = fallbackViewer(lang, viewUrl); }
 
-        iframe.src = "about:blank";
-        requestAnimationFrame(()=>{
-          iframe.src = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
+        // iOSは about:blank を挟まず、referrerpolicy も外す
+        const targetUrl = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
+        if (isIOS()){
+          iframe.removeAttribute('referrerpolicy');
+          iframe.src = targetUrl;
           iframe.title = getMsg("title");
-        });
+        } else {
+          iframe.src = "about:blank";
+          requestAnimationFrame(()=>{
+            iframe.src = targetUrl;
+            iframe.title = getMsg("title");
+          });
+        }
       });
 
       const run = () => {
@@ -282,6 +297,7 @@
       run();
     }
 
+    // ===== Helpers =====
     function getMsg(key){
       const lang = getSelectedLang();
       return (I18N[lang] || I18N.en)[key] || I18N.en[key];
