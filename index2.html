@@ -69,7 +69,6 @@
   </div>
 
   <main>
-    <!-- referrerpolicy を外す -->
     <iframe id="preview" title="PDF Preview"></iframe>
   </main>
 
@@ -100,11 +99,12 @@
       ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음", open:"새 탭에서 열기"},
     };
 
-    const RENDER_GRACE_SEC = 2;      // ダウンロード完了→描画までの猶予
-    const MAX_RENDER_RETRY = 3;      // 自動再試行回数
-    const PREFLIGHT_STALL_MS = 2000; // 最初のバイトが来ないときの猶予
+    const RENDER_GRACE_SEC = 2;          // ダウンロード完了→描画猶予
+    const NAV_GRACE_SEC    = 3;          // ダウンロード不明(gview等)→ナビ猶予
+    const MAX_RENDER_RETRY = 3;          // 自動再試行
+    const PREFLIGHT_STALL_MS = 2000;     // 最初のバイト猶予
 
-    // ステータス（成功は自動クリア、エラー/ロードは残す）
+    // status
     let __statusTimer = null;
     function setStatus(text, { persist = false, clearAfter = 4000, withAltLink = null } = {}) {
       const el = document.getElementById(STATUS_ID);
@@ -135,16 +135,16 @@
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
 
-    // Android: 直PDF → viewerng → gview
-    // iOS: viewerng → gview → 直PDF
-    // PC: 直PDF → gview → viewerng
+    // Android: gview → viewerng → pdf
+    // iOS: viewerng → gview → pdf
+    // PC: pdf → gview → viewerng
     function primaryViewer(lang){
       const pdf      = buildUrl(lang);
       const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
       const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
-      if (isAndroid()) return pdf;
+      if (isAndroid()) return gview;
       if (isIOS())     return viewerng;
-      return pdf; // PC
+      return pdf;
     }
     function fallbackViewer(lang, currentUrl){
       const pdf      = buildUrl(lang);
@@ -155,22 +155,22 @@
       const isPdf     = currentUrl && !isGview && !isViewerN;
 
       if (isAndroid()){
-        if (isPdf)     return viewerng; // pdf→viewerng
-        if (isViewerN) return gview;    // viewerng→gview
-        return pdf;                      // gview→pdf
+        if (isGview)   return viewerng;  // gview→viewerng
+        if (isViewerN) return pdf;       // viewerng→pdf
+        return gview;                    // pdf→gview
       }
       if (isIOS()){
-        if (isViewerN) return gview;    // viewerng→gview
-        if (isGview)   return pdf;      // gview→pdf
+        if (isViewerN) return gview;     // viewerng→gview
+        if (isGview)   return pdf;       // gview→pdf
         return viewerng;                 // pdf→viewerng
       }
       // PC
-      if (isPdf)     return gview;      // pdf→gview
-      if (isGview)   return viewerng;   // gview→viewerng
+      if (isPdf)     return gview;       // pdf→gview
+      if (isGview)   return viewerng;    // gview→viewerng
       return pdf;                        // viewerng→pdf
     }
 
-    // プレフライト（HEAD→Range 0-0）
+    // preflight
     async function preflight(url){
       try{
         const h = await fetch(url, { method:"HEAD", cache:"no-store" });
@@ -181,13 +181,12 @@
         const t = setTimeout(()=>ctrl.abort(), PREFLIGHT_STALL_MS);
         const r = await fetch(url, { headers:{ Range:"bytes=0-0" }, cache:"no-store", signal:ctrl.signal });
         clearTimeout(t);
-        // 206が理想。200を返すCDNもあるため okなら許容。
         if (!r.ok && r.status !== 206) return { ok:false, reason:`range-${r.status}` };
       }catch{ return { ok:false, reason:"range-net" }; }
       return { ok:true };
     }
 
-    // ETA（サイズ不明なら不確定アニメ）
+    // ETA
     let etaAbort = null;
     function startEta(url, onComplete){
       const row  = document.getElementById(ETA_ROW_ID);
@@ -205,7 +204,7 @@
           if(!res.ok) throw new Error("fetch");
           total = Number(res.headers.get('Content-Length')) || 0;
           if(!res.body || !('getReader' in res.body) || total === 0){
-            fill.classList.add('indet');
+            fill.classList.add('indet'); // サイズ不明
             return;
           }
           const rdr = res.body.getReader();
@@ -243,7 +242,7 @@
       return `${m}m ${s}s`;
     }
 
-    // プレビュー + 自動回復
+    // preview + auto-recovery with dual watchdog
     function previewWithAutoRecovery(lang){
       const iframe = document.getElementById(PREVIEW_ID);
       const pdfUrl = buildUrl(lang);
@@ -257,20 +256,27 @@
         if (!pf.ok){ return resolve({ ok:false, reason:`preflight-${pf.reason}` }); }
 
         stopEta();
-        let graceTimer = null;
+        let renderTimer = null;    // ダウンロード後ウォッチ
+        let navTimer    = null;    // ナビゲーションのみウォッチ（gview等サイズ不明ケース）
+
+        // gview / viewerng はサイズ不明が多いのでナビ用ウォッチを併用
+        const isExternalViewer = (u)=> u.includes("google.com/gview") || u.includes("drive.google.com/viewerng");
+
         startEta(pdfUrl, () => {
-          graceTimer = setTimeout(()=>{ resolve({ ok:false, reason:"render-stall" }); }, RENDER_GRACE_SEC * 1000);
+          renderTimer = setTimeout(()=>{ resolve({ ok:false, reason:"render-stall" }); }, RENDER_GRACE_SEC * 1000);
         });
 
         const t0 = performance.now();
         const onLoad = () => {
-          if(graceTimer) clearTimeout(graceTimer);
+          if(renderTimer) clearTimeout(renderTimer);
+          if(navTimer)    clearTimeout(navTimer);
           const dur = ((performance.now()-t0)/1000).toFixed(1);
           setStatus(getMsg("showing")(lang, dur), { persist:false, clearAfter:4000 });
           stopEta(); cleanup(); resolve({ ok:true });
         };
         const onError = () => {
-          if(graceTimer) clearTimeout(graceTimer);
+          if(renderTimer) clearTimeout(renderTimer);
+          if(navTimer)    clearTimeout(navTimer);
           stopEta(); cleanup(); resolve({ ok:false, reason:"error" });
         };
         function cleanup(){
@@ -283,7 +289,11 @@
         if(changeViewer){ viewUrl = fallbackViewer(lang, viewUrl); }
         const targetUrl = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
 
-        // iOSは about:blank を挟まない
+        // ナビウォッチ開始（外部ビューワ時のみ）
+        if (isExternalViewer(viewUrl)){
+          navTimer = setTimeout(()=>{ resolve({ ok:false, reason:"nav-stall" }); }, NAV_GRACE_SEC * 1000);
+        }
+
         if (isIOS()){
           iframe.src = targetUrl;
           iframe.title = getMsg("title");
@@ -326,7 +336,7 @@
       run();
     }
 
-    // ヘルパ
+    // helpers
     function getMsg(key){
       const lang = getSelectedLang();
       return (I18N[lang] || I18N.en)[key] || I18N.en[key];
