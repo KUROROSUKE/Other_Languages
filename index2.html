@@ -7,14 +7,12 @@
   <style>
     :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; }
     *{ box-sizing:border-box; margin:0; padding:0; }
-
     html, body{
       height:100%; width:100%; overflow:hidden;
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
       background:var(--bg); color:var(--text);
       display:flex; flex-direction:column;
     }
-
     header{
       flex:0 0 auto; padding:10px 16px; background:var(--panel); border-bottom:1px solid #1b2a3f;
       display:flex; justify-content:center; align-items:center;
@@ -24,7 +22,6 @@
       font-size:14px; padding:6px 10px; width:240px;
       text-align:left; text-align-last:left; direction:ltr;
     }
-
     .eta{
       flex:0 0 auto; display:flex; align-items:center; gap:10px;
       padding:8px 16px; background:#0d141e; border-bottom:1px solid #1b2a3f;
@@ -38,10 +35,8 @@
     @keyframes move{ from{ transform:translateX(-50%) } to{ transform:translateX(150%) } }
     .etatext{ width:160px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px }
     .eta[hidden]{ display:none }
-
     main{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
     iframe{ flex:1; width:100%; height:100%; border:0; background:#0b111a; display:block; }
-
     footer{
       flex:0 0 auto; padding:10px 16px; background:var(--panel); border-top:1px solid #1b2a3f;
       font-size:13px; color:var(--muted);
@@ -68,14 +63,14 @@
     </select>
   </header>
 
-  <!-- 進捗バー + 残り時間 -->
   <div id="etaRow" class="eta" hidden>
     <div class="bar"><div id="etaFill" class="fill"></div></div>
     <div id="etaText" class="etatext">—</div>
   </div>
 
   <main>
-    <iframe id="preview" title="PDF Preview" referrerpolicy="no-referrer"></iframe>
+    <!-- referrerpolicy を外す -->
+    <iframe id="preview" title="PDF Preview"></iframe>
   </main>
 
   <footer id="statusText">No file loaded</footer>
@@ -105,11 +100,11 @@
       ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음", open:"새 탭에서 열기"},
     };
 
-    const RENDER_GRACE_SEC = 2;   // ダウンロード完了→描画までの猶予
-    const MAX_RENDER_RETRY = 3;   // 自動再試行回数
-    const PREFLIGHT_STALL_MS = 2000; // プレフライトで最初のバイトが来ない猶予
+    const RENDER_GRACE_SEC = 2;      // ダウンロード完了→描画までの猶予
+    const MAX_RENDER_RETRY = 3;      // 自動再試行回数
+    const PREFLIGHT_STALL_MS = 2000; // 最初のバイトが来ないときの猶予
 
-    // ===== setStatus with auto-clear =====
+    // ステータス（成功は自動クリア、エラー/ロードは残す）
     let __statusTimer = null;
     function setStatus(text, { persist = false, clearAfter = 4000, withAltLink = null } = {}) {
       const el = document.getElementById(STATUS_ID);
@@ -140,59 +135,59 @@
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
     function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
 
-    // ビューア選択：iOS viewerng > gview > pdf, Android gview > viewerng > pdf, PC pdf > gview > viewerng
+    // Android: 直PDF → viewerng → gview
+    // iOS: viewerng → gview → 直PDF
+    // PC: 直PDF → gview → viewerng
     function primaryViewer(lang){
-      const pdf = buildUrl(lang);
+      const pdf      = buildUrl(lang);
       const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
       const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
-      if (isIOS()) return viewerng;
-      if (isAndroid()) return gview;
-      return pdf;
+      if (isAndroid()) return pdf;
+      if (isIOS())     return viewerng;
+      return pdf; // PC
     }
     function fallbackViewer(lang, currentUrl){
-      const pdf = buildUrl(lang);
+      const pdf      = buildUrl(lang);
       const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
       const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
       const isGview   = currentUrl?.startsWith("https://docs.google.com/gview?");
       const isViewerN = currentUrl?.startsWith("https://drive.google.com/viewerng/");
       const isPdf     = currentUrl && !isGview && !isViewerN;
-      if (isIOS()){
-        if (isViewerN) return gview;
-        if (isGview)   return pdf;
-        return viewerng;
-      }
+
       if (isAndroid()){
-        if (isGview)   return viewerng;
-        if (isViewerN) return pdf;
-        return gview;
+        if (isPdf)     return viewerng; // pdf→viewerng
+        if (isViewerN) return gview;    // viewerng→gview
+        return pdf;                      // gview→pdf
+      }
+      if (isIOS()){
+        if (isViewerN) return gview;    // viewerng→gview
+        if (isGview)   return pdf;      // gview→pdf
+        return viewerng;                 // pdf→viewerng
       }
       // PC
-      if (isPdf)     return gview;
-      if (isGview)   return viewerng;
-      return pdf;
+      if (isPdf)     return gview;      // pdf→gview
+      if (isGview)   return viewerng;   // gview→viewerng
+      return pdf;                        // viewerng→pdf
     }
 
-    // ===== プレフライト（到達性＋早期スタート検出） =====
+    // プレフライト（HEAD→Range 0-0）
     async function preflight(url){
-      // HEAD
       try{
         const h = await fetch(url, { method:"HEAD", cache:"no-store" });
         if (!h.ok) return { ok:false, reason:`head-${h.status}` };
       }catch{ return { ok:false, reason:"head-net" }; }
-
-      // bytes=0-0 で最初のバイトを確認し「ダウンロードが始まらない」ケースを検出
       try{
         const ctrl = new AbortController();
         const t = setTimeout(()=>ctrl.abort(), PREFLIGHT_STALL_MS);
         const r = await fetch(url, { headers:{ Range:"bytes=0-0" }, cache:"no-store", signal:ctrl.signal });
         clearTimeout(t);
+        // 206が理想。200を返すCDNもあるため okなら許容。
         if (!r.ok && r.status !== 206) return { ok:false, reason:`range-${r.status}` };
       }catch{ return { ok:false, reason:"range-net" }; }
-
       return { ok:true };
     }
 
-    // ===== ETA =====
+    // ETA（サイズ不明なら不確定アニメ）
     let etaAbort = null;
     function startEta(url, onComplete){
       const row  = document.getElementById(ETA_ROW_ID);
@@ -210,7 +205,7 @@
           if(!res.ok) throw new Error("fetch");
           total = Number(res.headers.get('Content-Length')) || 0;
           if(!res.body || !('getReader' in res.body) || total === 0){
-            fill.classList.add('indet'); // サイズ不明 → 不確定アニメ
+            fill.classList.add('indet');
             return;
           }
           const rdr = res.body.getReader();
@@ -233,7 +228,7 @@
           });
           return pump();
         })
-        .catch(()=>{ /* ネット失敗はフェイルオーバ側で処理 */ });
+        .catch(()=>{});
     }
     function stopEta(){
       if(etaAbort){ try{ etaAbort.abort(); }catch{} etaAbort = null; }
@@ -248,7 +243,7 @@
       return `${m}m ${s}s`;
     }
 
-    // ===== プレビュー + 自動回復（プレフライト込み） =====
+    // プレビュー + 自動回復
     function previewWithAutoRecovery(lang){
       const iframe = document.getElementById(PREVIEW_ID);
       const pdfUrl = buildUrl(lang);
@@ -258,19 +253,13 @@
       const loadOnce = (changeViewer=false) => new Promise(async resolve=>{
         setStatus(getMsg("loading"), { persist:true });
 
-        // プレフライト：不達やスタートしない時点で早期にNG
         const pf = await preflight(pdfUrl);
-        if (!pf.ok){
-          // ビューワ切替して再挑戦
-          return resolve({ ok:false, reason:`preflight-${pf.reason}` });
-        }
+        if (!pf.ok){ return resolve({ ok:false, reason:`preflight-${pf.reason}` }); }
 
         stopEta();
         let graceTimer = null;
         startEta(pdfUrl, () => {
-          graceTimer = setTimeout(()=>{
-            resolve({ ok:false, reason:"render-stall" });
-          }, RENDER_GRACE_SEC * 1000);
+          graceTimer = setTimeout(()=>{ resolve({ ok:false, reason:"render-stall" }); }, RENDER_GRACE_SEC * 1000);
         });
 
         const t0 = performance.now();
@@ -278,15 +267,11 @@
           if(graceTimer) clearTimeout(graceTimer);
           const dur = ((performance.now()-t0)/1000).toFixed(1);
           setStatus(getMsg("showing")(lang, dur), { persist:false, clearAfter:4000 });
-          stopEta();
-          cleanup();
-          resolve({ ok:true });
+          stopEta(); cleanup(); resolve({ ok:true });
         };
         const onError = () => {
           if(graceTimer) clearTimeout(graceTimer);
-          stopEta();
-          cleanup();
-          resolve({ ok:false, reason:"error" });
+          stopEta(); cleanup(); resolve({ ok:false, reason:"error" });
         };
         function cleanup(){
           iframe.removeEventListener("load", onLoad);
@@ -296,10 +281,10 @@
         iframe.addEventListener("error", onError);
 
         if(changeViewer){ viewUrl = fallbackViewer(lang, viewUrl); }
-
         const targetUrl = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
+
+        // iOSは about:blank を挟まない
         if (isIOS()){
-          iframe.removeAttribute('referrerpolicy');
           iframe.src = targetUrl;
           iframe.title = getMsg("title");
         } else {
@@ -341,13 +326,12 @@
       run();
     }
 
-    // ===== Helpers =====
+    // ヘルパ
     function getMsg(key){
       const lang = getSelectedLang();
       return (I18N[lang] || I18N.en)[key] || I18N.en[key];
     }
     function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
-
     function isIOS(){
       const ua = navigator.userAgent || navigator.vendor || "";
       const iOS = /iPad|iPhone|iPod/.test(ua);
