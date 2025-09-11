@@ -9,11 +9,10 @@
     * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif; margin:16px; }
     header { margin:0 0 12px; }
-    h1 { font-size:1.1rem; margin:0 0 6px; }
-    .hint { color:#555; font-size:.9rem; margin:0; }
+    h1 { font-size:1.1rem; margin:0; }
     .grid {
       display:grid; grid-template-columns:1fr; gap:var(--gap);
-      max-height:calc(100vh - 110px); overflow-y:auto; padding:2px; scroll-behavior:smooth;
+      max-height:calc(100vh - 80px); overflow-y:auto; padding:2px; scroll-behavior:smooth;
     }
     @media (min-width:640px){ .grid{ grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); max-height:none; } }
     .lang {
@@ -24,10 +23,8 @@
     .lang.highlight { background:var(--hi); border-color:#b6d7ff; }
     .lang:focus { outline:2px solid #111; outline-offset:2px; }
     .name { font-size:1rem; }
-    .sub { font-size:.8rem; color:#666; }
     .right { display:flex; gap:8px; align-items:center; }
     .badge { font-size:.7rem; color:#1a1a1a; background:#e9eef5; border-radius:999px; padding:2px 8px; }
-    .cc { font-size:.75rem; background:#f4f4f4; border-radius:6px; padding:2px 6px; color:#444; }
     .flag { width:22px; height:16px; border:1px solid #ddd; border-radius:2px; object-fit:cover; display:none; }
     .flag.show { display:inline-block; }
   </style>
@@ -35,13 +32,12 @@
 <body>
   <header>
     <h1 id="title">言語を選択</h1>
-    <p class="hint" id="hint">端末設定に合わせて順番を調整しています。</p>
   </header>
 
   <nav class="grid" id="lang-grid" aria-label="言語一覧"></nav>
 
   <script>
-    // ===== 設定 =====
+    // 言語リスト
     const LANGS = [
       {code:'en', name:'English',    cc:'GB'},
       {code:'ja', name:'日本語',        cc:'JP'},
@@ -57,42 +53,57 @@
       {code:'hi', name:'हिन्दी',       cc:'IN'},
       {code:'tr', name:'Türkçe',     cc:'TR'},
     ];
+
+    // タイトル翻訳
     const UI_I18N = {
-      en:{ title:'Choose your language', hint:'Ordered by your device language.' },
-      ja:{ title:'言語を選択', hint:'端末の言語に合わせて順序を最適化しています。' },
-      de:{ title:'Sprache wählen', hint:'Nach Ihrer Gerätesprache sortiert.' },
-      fr:{ title:'Choisissez votre langue', hint:'Ordonné selon la langue de votre appareil.' },
-      es:{ title:'Elige tu idioma', hint:'Ordenado por el idioma del dispositivo.' },
-      it:{ title:'Scegli la lingua', hint:'Ordinato in base alla lingua del dispositivo.' },
-      pt:{ title:'Escolha o idioma', hint:'Ordenado pelo idioma do dispositivo.' },
-      ru:{ title:'Выберите язык', hint:'Отсортировано по языку устройства.' },
-      zh:{ title:'选择语言', hint:'根据设备语言排序。' },
-      ko:{ title:'언어 선택', hint:'기기 언어 기준으로 정렬합니다.' },
-      ar:{ title:'اختر لغتك', hint:'مرتبة حسب لغة جهازك.' },
-      hi:{ title:'भाषा चुनें', hint:'डिवाइस भाषा के अनुसार क्रमित।' },
-      tr:{ title:'Dilinizi seçin', hint:'Cihaz dilinize göre sıralandı.' },
+      en:{ title:'Choose your language' },
+      ja:{ title:'言語を選択' },
+      de:{ title:'Sprache wählen' },
+      fr:{ title:'Choisissez votre langue' },
+      es:{ title:'Elige tu idioma' },
+      it:{ title:'Scegli la lingua' },
+      pt:{ title:'Escolha o idioma' },
+      ru:{ title:'Выберите язык' },
+      zh:{ title:'选择语言' },
+      ko:{ title:'언어 선택' },
+      ar:{ title:'اختر لغتك' },
+      hi:{ title:'भाषा चुनें' },
+      tr:{ title:'Dilinizi seçin' },
     };
+
+    // 「おすすめ」バッジの翻訳
+    const SUGGESTED_LABEL = {
+      en:'Suggested', ja:'おすすめ', de:'Empfohlen', fr:'Recommandé', es:'Recomendado',
+      it:'Consigliato', pt:'Sugerido', ru:'Рекомендуемое', zh:'推荐', ko:'추천',
+      ar:'موصى به', hi:'अनुशंसित', tr:'Önerilen'
+    };
+
     const DEFAULT_FALLBACK = 'en';
 
-    // ===== 起動 =====
+    // 起動
     init();
 
     function init(){
-      const suggested = suggestLangByDevice(LANGS.map(l=>l.code), null, DEFAULT_FALLBACK);
+      const suggested = suggestLangByDevice(LANGS.map(l=>l.code), DEFAULT_FALLBACK);
+      // <html lang> と RTL
+      document.documentElement.lang = suggested || DEFAULT_FALLBACK;
       applyRtlIfNeeded(suggested);
-      localizeUI(suggested);
+      // タイトル翻訳
+      localizeTitle(suggested);
+      // 並びと描画（推奨を先頭＋ハイライト）
       const ordered = orderCodes(suggested);
       buildGrid(ordered, suggested);
-      // モバイルで推奨位置にスクロール
+      // モバイルで推奨位置へ
       scrollToLang(suggested);
     }
 
-    // ===== 並びと描画 =====
+    // 並び替え
     function orderCodes(suggested){
       const rest = LANGS.map(l=>l.code).filter(c => c !== suggested);
       return [suggested, ...rest];
     }
 
+    // グリッド描画
     function buildGrid(codes, highlightCode){
       const grid = byId('lang-grid');
       grid.innerHTML = '';
@@ -109,36 +120,33 @@
 
         const left = document.createElement('div');
         const name = document.createElement('div'); name.className = 'name'; name.textContent = l.name;
-        const sub  = document.createElement('div'); sub.className = 'sub';  sub.textContent = `(${l.code})`;
-        left.appendChild(name); left.appendChild(sub);
+        left.appendChild(name); // 要望により (ja) 等は表示しない
 
         const right = document.createElement('div'); right.className = 'right';
-        // 国旗画像（あれば表示）
+        // 国旗画像（存在すれば表示）: /countries_img/CC.svg
         const img = document.createElement('img'); img.className = 'flag'; img.alt = '';
-        if (l.cc) { // 例: /countries_img/JP.svg を置けば自動で表示
+        if (l.cc) {
           img.src = `countries_img/${l.cc}.svg`;
           img.onload = () => img.classList.add('show');
         }
-        const ccBadge = document.createElement('span'); ccBadge.className = 'cc'; ccBadge.textContent = l.code.toUpperCase();
 
-        // 先頭はおすすめバッジ
+        // 推奨バッジをローカライズして付与
         if (code === highlightCode) {
-          const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Suggested';
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.textContent = SUGGESTED_LABEL[highlightCode] || SUGGESTED_LABEL[DEFAULT_FALLBACK];
           right.appendChild(badge);
         }
 
         right.appendChild(img);
-        right.appendChild(ccBadge);
-
         a.appendChild(left);
         a.appendChild(right);
-
         grid.appendChild(a);
       });
     }
 
-    // ===== 推定と言語処理 =====
-    function suggestLangByDevice(catalogCodes, _ignored, fallback='en'){
+    // 推定
+    function suggestLangByDevice(catalogCodes, fallback='en'){
       const cands = getBrowserLangCandidates();
       for (const c of cands){
         const hit = normalizeToCatalog(catalogCodes, c);
@@ -163,18 +171,17 @@
       return null;
     }
 
-    // ===== UIローカライズ・方向 =====
-    function localizeUI(code){
+    // UI
+    function localizeTitle(code){
       const t = UI_I18N[code] || UI_I18N[DEFAULT_FALLBACK];
       byId('title').textContent = t.title;
-      byId('hint').textContent  = t.hint;
     }
     function applyRtlIfNeeded(code){
       const l = codeToLang(code);
       document.documentElement.dir = l && l.dir === 'rtl' ? 'rtl' : 'ltr';
     }
 
-    // ===== 補助 =====
+    // 補助
     function scrollToLang(code){
       const el = byId(`lang-${code}`);
       if (el) el.scrollIntoView({ block:'center' });
