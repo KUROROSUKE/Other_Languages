@@ -5,56 +5,40 @@
   <title>Language Select</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root { --gap:12px; --radius:14px; --pad:14px; }
+    :root { --gap:12px; --radius:14px; --pad:14px; --hi:#f0f7ff; }
     * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif; margin:16px; }
     header { margin:0 0 12px; }
     h1 { font-size:1.1rem; margin:0 0 6px; }
     .hint { color:#555; font-size:.9rem; margin:0; }
-    /* スマホ: 1列で横いっぱい。タブレット以上で複数列 */
     .grid {
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: var(--gap);
-      max-height: calc(100vh - 110px); /* ヘッダ分を差し引き */
-      overflow-y: auto;
-      padding: 2px;
-      scroll-behavior: smooth;
+      display:grid; grid-template-columns:1fr; gap:var(--gap);
+      max-height:calc(100vh - 110px); overflow-y:auto; padding:2px; scroll-behavior:smooth;
     }
-    @media (min-width: 640px) {
-      .grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); max-height: none; }
-    }
-    /* 言語ブロック */
+    @media (min-width:640px){ .grid{ grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); max-height:none; } }
     .lang {
       display:flex; align-items:center; justify-content:space-between;
-      padding: var(--pad);
-      border:1px solid #e2e2e2; border-radius: var(--radius);
-      background:#fff; cursor:pointer; text-decoration:none; color:inherit;
-      min-height:56px;
+      padding:var(--pad); border:1px solid #e2e2e2; border-radius:var(--radius);
+      background:#fff; cursor:pointer; text-decoration:none; color:inherit; min-height:56px;
     }
+    .lang.highlight { background:var(--hi); border-color:#b6d7ff; }
     .lang:focus { outline:2px solid #111; outline-offset:2px; }
     .name { font-size:1rem; }
     .sub { font-size:.8rem; color:#666; }
     .right { display:flex; gap:8px; align-items:center; }
-    .flag { font-size:1.2rem; line-height:1; }
-    .badge {
-      font-size:.7rem; color:#1a1a1a; background:#f1f1f1; border-radius:999px; padding:2px 8px;
-    }
-    /* 余白確保 */
-    .footnote { font-size:.8rem; color:#666; margin-top:10px; }
-    /* iOSタップの青背景抑制 */
-    .lang { -webkit-tap-highlight-color: transparent; }
+    .badge { font-size:.7rem; color:#1a1a1a; background:#e9eef5; border-radius:999px; padding:2px 8px; }
+    .cc { font-size:.75rem; background:#f4f4f4; border-radius:6px; padding:2px 6px; color:#444; }
+    .flag { width:22px; height:16px; border:1px solid #ddd; border-radius:2px; object-fit:cover; display:none; }
+    .flag.show { display:inline-block; }
   </style>
 </head>
 <body>
   <header>
     <h1 id="title">言語を選択</h1>
-    <p class="hint" id="hint">端末の設定からおすすめを表示します。</p>
+    <p class="hint" id="hint">端末設定に合わせて順番を調整しています。</p>
   </header>
 
   <nav class="grid" id="lang-grid" aria-label="言語一覧"></nav>
-
-  <p class="footnote" id="remember-note"></p>
 
   <script>
     // ===== 設定 =====
@@ -73,34 +57,43 @@
       {code:'hi', name:'हिन्दी',       cc:'IN'},
       {code:'tr', name:'Türkçe',     cc:'TR'},
     ];
+    const UI_I18N = {
+      en:{ title:'Choose your language', hint:'Ordered by your device language.' },
+      ja:{ title:'言語を選択', hint:'端末の言語に合わせて順序を最適化しています。' },
+      de:{ title:'Sprache wählen', hint:'Nach Ihrer Gerätesprache sortiert.' },
+      fr:{ title:'Choisissez votre langue', hint:'Ordonné selon la langue de votre appareil.' },
+      es:{ title:'Elige tu idioma', hint:'Ordenado por el idioma del dispositivo.' },
+      it:{ title:'Scegli la lingua', hint:'Ordinato in base alla lingua del dispositivo.' },
+      pt:{ title:'Escolha o idioma', hint:'Ordenado pelo idioma do dispositivo.' },
+      ru:{ title:'Выберите язык', hint:'Отсортировано по языку устройства.' },
+      zh:{ title:'选择语言', hint:'根据设备语言排序。' },
+      ko:{ title:'언어 선택', hint:'기기 언어 기준으로 정렬합니다.' },
+      ar:{ title:'اختر لغتك', hint:'مرتبة حسب لغة جهازك.' },
+      hi:{ title:'भाषा चुनें', hint:'डिवाइस भाषा के अनुसार क्रमित।' },
+      tr:{ title:'Dilinizi seçin', hint:'Cihaz dilinize göre sıralandı.' },
+    };
     const DEFAULT_FALLBACK = 'en';
 
-    // ===== 入口 =====
+    // ===== 起動 =====
     init();
 
-    // ===== 初期化 =====
-    function init() {
-      const remembered = getRememberedLang();
-      const suggested = suggestLangByDevice(LANGS.map(l=>l.code), remembered, DEFAULT_FALLBACK);
-
-      buildGrid(orderCodes(remembered, suggested));
-      applyRtlIfNeeded(suggested || remembered);
-      updateHint(remembered, suggested);
-      updateRememberNote(remembered);
-
-      // 初期表示で推奨位置までスクロール（スマホで有効）
-      scrollToLang(remembered || suggested);
+    function init(){
+      const suggested = suggestLangByDevice(LANGS.map(l=>l.code), null, DEFAULT_FALLBACK);
+      applyRtlIfNeeded(suggested);
+      localizeUI(suggested);
+      const ordered = orderCodes(suggested);
+      buildGrid(ordered, suggested);
+      // モバイルで推奨位置にスクロール
+      scrollToLang(suggested);
     }
 
-    // 優先順で並べ替え（記憶→推奨→残り）
-    function orderCodes(remembered, suggested) {
-      const priority = unique([remembered, suggested].filter(Boolean));
-      const rest = LANGS.map(l=>l.code).filter(c => !priority.includes(c));
-      return [...priority, ...rest];
+    // ===== 並びと描画 =====
+    function orderCodes(suggested){
+      const rest = LANGS.map(l=>l.code).filter(c => c !== suggested);
+      return [suggested, ...rest];
     }
 
-    // グリッド描画
-    function buildGrid(codes) {
+    function buildGrid(codes, highlightCode){
       const grid = byId('lang-grid');
       grid.innerHTML = '';
       codes.forEach(code => {
@@ -109,7 +102,7 @@
         a.href = `pdf/${l.code}.pdf`;
         a.target = '_blank';
         a.rel = 'noopener';
-        a.className = 'lang';
+        a.className = 'lang' + (code === highlightCode ? ' highlight' : '');
         a.setAttribute('role','button');
         a.setAttribute('aria-label', `${l.name} のPDFを新しいタブで開く`);
         a.id = `lang-${l.code}`;
@@ -120,99 +113,74 @@
         left.appendChild(name); left.appendChild(sub);
 
         const right = document.createElement('div'); right.className = 'right';
-        const flag = document.createElement('span'); flag.className = 'flag'; flag.textContent = ccToFlag(l.cc);
-        right.appendChild(flag);
+        // 国旗画像（あれば表示）
+        const img = document.createElement('img'); img.className = 'flag'; img.alt = '';
+        if (l.cc) { // 例: /countries_img/JP.svg を置けば自動で表示
+          img.src = `countries_img/${l.cc}.svg`;
+          img.onload = () => img.classList.add('show');
+        }
+        const ccBadge = document.createElement('span'); ccBadge.className = 'cc'; ccBadge.textContent = l.code.toUpperCase();
+
+        // 先頭はおすすめバッジ
+        if (code === highlightCode) {
+          const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Suggested';
+          right.appendChild(badge);
+        }
+
+        right.appendChild(img);
+        right.appendChild(ccBadge);
 
         a.appendChild(left);
         a.appendChild(right);
 
-        a.addEventListener('click', () => rememberLang(l.code));
-        a.addEventListener('keydown', (e) => { if (e.key === 'Enter') rememberLang(l.code); });
-
         grid.appendChild(a);
       });
-
-      // 先頭ブロックにバッジ付与（記憶 or 推奨）
-      const first = grid.firstElementChild;
-      if (first) appendBadge(first, 'おすすめ');
     }
 
-    // バッジ付与
-    function appendBadge(el, text) {
-      const badge = document.createElement('span');
-      badge.className = 'badge';
-      badge.textContent = text;
-      const right = el.querySelector('.right');
-      right.appendChild(badge);
-    }
-
-    // 推定: ブラウザ言語→カタログに正規化
-    function suggestLangByDevice(catalogCodes, remembered, fallback='en') {
-      if (remembered && catalogCodes.includes(remembered)) return remembered;
+    // ===== 推定と言語処理 =====
+    function suggestLangByDevice(catalogCodes, _ignored, fallback='en'){
       const cands = getBrowserLangCandidates();
-      for (const c of cands) {
+      for (const c of cands){
         const hit = normalizeToCatalog(catalogCodes, c);
         if (hit) return hit;
       }
       return catalogCodes.includes(fallback) ? fallback : catalogCodes[0];
     }
-    function getBrowserLangCandidates() {
+    function getBrowserLangCandidates(){
       const langs = Array.isArray(navigator.languages) && navigator.languages.length
-        ? navigator.languages
-        : [navigator.language].filter(Boolean);
+        ? navigator.languages : [navigator.language].filter(Boolean);
       const lower = langs.map(l => String(l || '').toLowerCase());
       const shorts = lower.map(l => l.split('-')[0]);
       return [...new Set([...lower, ...shorts])];
     }
-    function normalizeToCatalog(catalogCodes, candidate) {
+    function normalizeToCatalog(catalogCodes, cand){
       const set = new Set(catalogCodes);
-      if (set.has(candidate)) return candidate;
-      const base = candidate.split('-')[0];
+      if (set.has(cand)) return cand;
+      const base = cand.split('-')[0];
       if (set.has(base)) return base;
       if (base === 'zh') return 'zh';
       if (base === 'pt') return 'pt';
       return null;
     }
 
-    // 記憶
-    function getRememberedLang() {
-      try { return localStorage.getItem('preferred_lang') || null; } catch { return null; }
+    // ===== UIローカライズ・方向 =====
+    function localizeUI(code){
+      const t = UI_I18N[code] || UI_I18N[DEFAULT_FALLBACK];
+      byId('title').textContent = t.title;
+      byId('hint').textContent  = t.hint;
     }
-    function rememberLang(code) {
-      try { localStorage.setItem('preferred_lang', code); } catch {}
-      updateRememberNote(code);
-    }
-
-    // 表示
-    function applyRtlIfNeeded(code) {
+    function applyRtlIfNeeded(code){
       const l = codeToLang(code);
       document.documentElement.dir = l && l.dir === 'rtl' ? 'rtl' : 'ltr';
     }
-    function updateHint(remembered, suggested) {
-      const el = byId('hint');
-      if (remembered) el.textContent = `前回は ${codeToName(remembered)} を使用しました。`;
-      else if (suggested) el.textContent = `${codeToName(suggested)} をおすすめします。`;
-      else el.textContent = '言語を選んでください。';
-    }
-    function updateRememberNote(code) {
-      const el = byId('remember-note');
-      el.textContent = code ? `選択はこの端末に保存されます: ${codeToName(code)}。` : '';
-    }
-    function scrollToLang(code) {
-      if (!code) return;
+
+    // ===== 補助 =====
+    function scrollToLang(code){
       const el = byId(`lang-${code}`);
       if (el) el.scrollIntoView({ block:'center' });
     }
-
-    // 補助
     function byId(id){ return document.getElementById(id); }
-    function unique(arr){ return [...new Set(arr)]; }
     function codeToLang(code){ return LANGS.find(l => l.code === code); }
-    function codeToName(code){ return codeToLang(code)?.name || code; }
-    function ccToFlag(cc){
-      if (!cc) return '';
-      return String.fromCodePoint(...cc.toUpperCase().split('').map(c => 0x1F1E6 + (c.charCodeAt(0) - 65)));
-    }
   </script>
 </body>
 </html>
