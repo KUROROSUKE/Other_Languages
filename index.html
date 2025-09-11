@@ -1,318 +1,220 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Multi-language PDF Preview</title>
+  <meta charset="UTF-8">
+  <title>Language Select</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; }
-    *{ box-sizing:border-box; margin:0; padding:0; }
-
-    html, body{
-      height:100%; width:100%; overflow:hidden;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
-      background:var(--bg); color:var(--text);
-      display:flex; flex-direction:column;
+    :root { --gap:12px; --btn-h:44px; --radius:12px; }
+    body { font-family: system-ui, sans-serif; margin:20px; }
+    h1 { font-size:1.25rem; margin:0 0 12px; }
+    .hint { color:#555; font-size:.9rem; margin-bottom:16px; }
+    .quick { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:var(--gap); margin:0 0 16px; padding:0; list-style:none; }
+    .quick button {
+      height:var(--btn-h); border:1px solid #ddd; border-radius:var(--radius); background:#fff; cursor:pointer;
+      padding:0 12px; text-align:left; font:inherit;
     }
-
-    header{
-      flex:0 0 auto; padding:10px 16px; background:var(--panel); border-bottom:1px solid #1b2a3f;
-      display:flex; justify-content:center; align-items:center;
+    .quick button:focus { outline:2px solid #222; outline-offset:2px; }
+    .row { display:flex; gap:var(--gap); align-items:center; flex-wrap:wrap; }
+    select, input[type="search"] {
+      height:var(--btn-h); padding:0 12px; border:1px solid #ddd; border-radius:var(--radius); font:inherit;
     }
-    select{
-      appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:#e8eef6;
-      font-size:14px; padding:6px 10px; width:240px;
-      text-align:left; text-align-last:left; direction:ltr;
-    }
-
-    .eta{
-      flex:0 0 auto; display:flex; align-items:center; gap:10px;
-      padding:8px 16px; background:#0d141e; border-bottom:1px solid #1b2a3f;
-    }
-    .bar{ position:relative; flex:1; height:10px; background:#203046; border-radius:999px; overflow:hidden }
-    .fill{ position:absolute; inset:0 auto 0 0; width:0%; background:var(--primary); transition:width .2s linear }
-    .indet{
-      background:linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
-      background-size:200% 100%; animation:move 1.2s linear infinite; width:40%;
-    }
-    @keyframes move{ from{ transform:translateX(-50%) } to{ transform:translateX(150%) } }
-    .etatext{ width:160px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px }
-    .eta[hidden]{ display:none }
-
-    main{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
-    iframe{ flex:1; width:100%; height:100%; border:0; background:#0b111a; display:block; }
-
-    footer{
-      flex:0 0 auto; padding:10px 16px; background:var(--panel); border-top:1px solid #1b2a3f;
-      font-size:13px; color:var(--muted);
-    }
+    .row button.open { height:var(--btn-h); padding:0 16px; border:1px solid #111; background:#111; color:#fff; border-radius:var(--radius); cursor:pointer; }
+    .small { font-size:.8rem; color:#666; margin-top:8px; }
   </style>
 </head>
 <body>
-  <header>
-    <select id="lang_selection">
-      <option value="en" selected>🇺🇸 English</option>
-      <option value="ja">🇯🇵 日本語</option>
-      <option value="de">🇩🇪 Deutsch</option>
-      <option value="fr">🇫🇷 Français</option>
-      <option value="es">🇪🇸 Español</option>
-      <option value="pt">🇵🇹 Português</option>
-      <option value="it">🇮🇹 Italiano</option>
-      <option value="ru">🇷🇺 Русский</option>
-      <option value="ar">🇸🇦 العربية</option>
-      <option value="hi">🇮🇳 हिन्दी</option>
-      <option value="cn">🇨🇳 简体中文</option>
-      <option value="tw">🇹🇼 繁體中文</option>
-      <option value="ko">🇰🇷 한국어</option>
-    </select>
-  </header>
+  <h1>Choose your language</h1>
+  <p class="hint" id="hint">We suggest a language based on your device.</p>
 
-  <!-- 進捗バー + 残り時間 -->
-  <div id="etaRow" class="eta" hidden>
-    <div class="bar"><div id="etaFill" class="fill"></div></div>
-    <div id="etaText" class="etatext">—</div>
+  <ul class="quick" id="quick-list" aria-label="Quick languages"></ul>
+
+  <div class="row" role="group" aria-label="All languages">
+    <input type="search" id="lang-search" placeholder="Type to filter…" aria-label="Filter languages">
+    <select id="lang-select" aria-label="Language list"></select>
+    <button class="open" id="open-btn" type="button">Open PDF</button>
   </div>
 
-  <main>
-    <iframe id="preview" title="PDF Preview" referrerpolicy="no-referrer"></iframe>
-  </main>
-
-  <footer id="statusText">No file loaded</footer>
+  <p class="small" id="remember-note"></p>
 
   <script>
-    const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf";
-    const PREVIEW_ID = "preview";
-    const STATUS_ID = "statusText";
-    const SELECT_ID = "lang_selection";
-    const ETA_ROW_ID = "etaRow";
-    const ETA_FILL_ID = "etaFill";
-    const ETA_TEXT_ID = "etaText";
+    // 設定: 言語コードと表示名。display名はネイティブ名を優先。
+    const LANGS = [
+      {code:'en', name:'English'},
+      {code:'ja', name:'日本語'},
+      {code:'de', name:'Deutsch'},
+      {code:'fr', name:'Français'},
+      {code:'es', name:'Español'},
+      {code:'it', name:'Italiano'},
+      {code:'pt', name:'Português'},
+      {code:'ru', name:'Русский'},
+      {code:'zh', name:'中文'},
+      {code:'ko', name:'한국어'},
+      {code:'ar', name:'العربية'},
+      {code:'hi', name:'हिन्दी'},
+      {code:'tr', name:'Türkçe'},
+    ];
 
-    const I18N = {
-      en:{idle:"No file loaded",loading:"Loading…",showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`,fail:"Load failed. Please try again.",title:"PDF Preview",eta:"ETA"},
-      ja:{idle:"ファイル未読み込み",loading:"読み込み中…",showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`,fail:"読み込みに失敗しました。再度お試しください。",title:"PDFプレビュー",eta:"残り"},
-      de:{idle:"Keine Datei geladen",loading:"Laden…",showing:(l,t)=>`Wird angezeigt: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Laden fehlgeschlagen. Bitte erneut versuchen.",title:"PDF-Vorschau",eta:"Rest"},
-      fr:{idle:"Aucun fichier chargé",loading:"Chargement…",showing:(l,t)=>`Affichage : ${l}.pdf${t?` • ${t}s`:''}`,fail:"Échec du chargement. Réessayez.",title:"Aperçu PDF",eta:"Reste"},
-      es:{idle:"Ningún archivo cargado",loading:"Cargando…",showing:(l,t)=>`Mostrando: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Error de carga. Inténtalo de nuevo.",title:"Vista previa PDF",eta:"Faltan"},
-      pt:{idle:"Nenhum arquivo carregado",loading:"Carregando…",showing:(l,t)=>`Exibindo: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Falha ao carregar. Tente novamente.",title:"Pré-visualização PDF",eta:"Restante"},
-      it:{idle:"Nessun file caricato",loading:"Caricamento…",showing:(l,t)=>`In visualizzazione: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Caricamento non riuscito. Riprova.",title:"Anteprima PDF",eta:"Rimanente"},
-      ru:{idle:"Файл не загружен",loading:"Загрузка…",showing:(l,t)=>`Отображается: ${l}.pdf${t?` • ${t}с`:''}`,fail:"Не удалось загрузить. Повторите попытку.",title:"Предпросмотр PDF",eta:"Осталось"},
-      ar:{idle:"لا ملف محمّل",loading:"جارٍ التحميل…",showing:(l,t)=>`يُعرض: ‎${l}.pdf${t?` • ${t}ث`:''}`,fail:"فشل التحميل. حاول مجدداً.",title:"معاينة PDF",eta:"المتبقي"},
-      hi:{idle:"कोई फ़ाइल लोड नहीं",loading:"लोड हो रहा है…",showing:(l,t)=>`दिखा रहा है: ${l}.pdf${t?` • ${t}सेकंड`:''}`,fail:"लोड विफल। पुनः प्रयास करें।",title:"PDF पूर्वावलोकन",eta:"शेष"},
-      cn:{idle:"未加载文件",loading:"正在加载…",showing:(l,t)=>`正在显示：${l}.pdf${t?` • ${t}秒`:''}`,fail:"加载失败。请重试。",title:"PDF 预览",eta:"剩余"},
-      tw:{idle:"未載入檔案",loading:"載入中…",showing:(l,t)=>`顯示中：${l}.pdf${t?` • ${t}秒`:''}`,fail:"載入失敗。請再試一次。",title:"PDF 預覽",eta:"剩餘"},
-      ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음"},
-    };
+    // 入口
+    init();
 
-    const RENDER_GRACE_SEC = 2;   // ダウンロード完了→描画までの猶予秒
-    const MAX_RENDER_RETRY = 3;   // 自動再試行回数
+    // 初期化
+    function init() {
+      const remembered = getRememberedLang();
+      const suggested = suggestLangByBrowser();
 
-    // ===== setStatus with auto-clear =====
-    let __statusTimer = null;
-    function setStatus(text, { persist = false, clearAfter = 4000 } = {}) {
-      const el = document.getElementById(STATUS_ID);
-      el.textContent = text;
-      if (__statusTimer) { clearTimeout(__statusTimer); __statusTimer = null; }
-      if (!persist) {
-        __statusTimer = setTimeout(() => {
-          if (el.textContent === text) el.textContent = "";
-        }, clearAfter);
+      buildQuickButtons([remembered || suggested, 'en', 'ja', 'de'].filter(Boolean));
+      buildSelect(LANGS);
+      wireFilter();
+      wireOpen();
+
+      applyInitialSelection(remembered || suggested);
+      updateHint(remembered, suggested);
+      updateRememberNote(remembered);
+      // Enterキーで開く
+      document.getElementById('lang-select').addEventListener('keydown', e => {
+        if (e.key === 'Enter') openSelected();
+      });
+      document.getElementById('lang-search').addEventListener('keydown', e => {
+        if (e.key === 'Enter') openSelected();
+      });
+    }
+
+    // ブラウザ言語から候補を返す
+    function suggestLangByBrowser() {
+      const nav = navigator.languages || [navigator.language || ''];
+      const codes = nav.map(v => v.toLowerCase());
+      const short = codes.map(v => v.split('-')[0]);
+      const all = [...codes, ...short];
+      const found = LANGS.find(l => all.includes(l.code));
+      return found?.code || null;
+    }
+
+    // ローカルストレージから過去選択を取得
+    function getRememberedLang() {
+      try { return localStorage.getItem('preferred_lang') || null; }
+      catch { return null; }
+    }
+
+    // クイックボタン群を描画
+    function buildQuickButtons(prefList) {
+      const unique = uniq(prefList).filter(code => LANGS.some(l => l.code === code));
+      const container = document.getElementById('quick-list');
+      container.innerHTML = '';
+      unique.forEach(code => {
+        const lang = LANGS.find(l => l.code === code);
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', `${lang.name} PDF`);
+        btn.textContent = `${flagEmoji(code)}  ${lang.name}`;
+        btn.addEventListener('click', () => openLang(code));
+        li.appendChild(btn);
+        container.appendChild(li);
+      });
+    }
+
+    // セレクトを構築
+    function buildSelect(list) {
+      const sel = document.getElementById('lang-select');
+      sel.innerHTML = '';
+      list.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.code;
+        opt.textContent = `${l.name} (${l.code})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    // 検索と連動
+    function wireFilter() {
+      const input = document.getElementById('lang-search');
+      const sel = document.getElementById('lang-select');
+      input.addEventListener('input', () => {
+        const q = input.value.toLowerCase().trim();
+        sel.innerHTML = '';
+        LANGS.filter(l =>
+          l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q)
+        ).forEach(l => {
+          const opt = document.createElement('option');
+          opt.value = l.code;
+          opt.textContent = `${l.name} (${l.code})`;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    // 「Open PDF」ボタン
+    function wireOpen() {
+      document.getElementById('open-btn').addEventListener('click', openSelected);
+    }
+
+    // 選択中を開く
+    function openSelected() {
+      const sel = document.getElementById('lang-select');
+      const code = sel.value || LANGS[0].code;
+      openLang(code);
+    }
+
+    // 指定言語PDFを新規タブで開く
+    function openLang(code) {
+      const url = `pdf/${code}.pdf`;
+      rememberLang(code);
+      window.open(url, '_blank', 'noopener');
+    }
+
+    // 初期選択反映
+    function applyInitialSelection(code) {
+      if (!code) return;
+      const sel = document.getElementById('lang-select');
+      const opt = [...sel.options].find(o => o.value === code);
+      if (opt) sel.value = code;
+    }
+
+    // 言語記憶
+    function rememberLang(code) {
+      try { localStorage.setItem('preferred_lang', code); }
+      catch {}
+      updateRememberNote(code);
+    }
+
+    // ヒント文更新
+    function updateHint(remembered, suggested) {
+      const el = document.getElementById('hint');
+      if (remembered) {
+        const name = codeToName(remembered);
+        el.textContent = `Last time you used ${name}.`;
+      } else if (suggested) {
+        const name = codeToName(suggested);
+        el.textContent = `Suggested: ${name}.`;
+      } else {
+        el.textContent = 'Select your preferred language.';
       }
     }
 
-    document.getElementById(SELECT_ID).addEventListener("change", () => {
-      previewWithAutoRecovery(getSelectedLang());
-    });
-    window.addEventListener("DOMContentLoaded", () => {
-      document.getElementById(SELECT_ID).value = "en";
-      previewWithAutoRecovery("en");
-    });
-
-    function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
-    function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
-
-    // iOSは viewerng 優先、Android は gview、PC は直PDF
-    function primaryViewer(lang){
-      const pdf = buildUrl(lang);
-      const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
-      const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
-      if (isIOS()) return viewerng;
-      if (isAndroid()) return gview;
-      return pdf;
-    }
-    function fallbackViewer(lang, currentUrl){
-      const pdf = buildUrl(lang);
-      const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
-      const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
-      const isGview   = currentUrl?.startsWith("https://docs.google.com/gview?");
-      const isViewerN = currentUrl?.startsWith("https://drive.google.com/viewerng/");
-      if (isGview)   return viewerng; // gview→viewerng
-      if (isViewerN) return pdf;      // viewerng→直PDF
-      return gview;                   // 直PDF→gview
+    // 記憶表示
+    function updateRememberNote(code) {
+      const el = document.getElementById('remember-note');
+      el.textContent = code ? `Your preference is saved: ${codeToName(code)}.` : '';
     }
 
-    // ===== ETA =====
-    let etaAbort = null;
-    function startEta(url, onComplete){
-      const row  = document.getElementById(ETA_ROW_ID);
-      const fill = document.getElementById(ETA_FILL_ID);
-      const txt  = document.getElementById(ETA_TEXT_ID);
-      row.hidden = false; fill.classList.remove('indet'); fill.style.width = "0%";
-      txt.textContent = `${getMsg('eta')}: …`;
+    // 補助: ユニーク化
+    function uniq(arr) { return [...new Set(arr)]; }
 
-      etaAbort = new AbortController();
-      const started = performance.now();
-      let loaded = 0, total = 0;
+    // 補助: code→名前
+    function codeToName(code) { return LANGS.find(l => l.code === code)?.name || code; }
 
-      fetch(url, { signal: etaAbort.signal, cache:"no-store" })
-        .then(res => {
-          if(!res.ok) throw new Error("fetch");
-          total = Number(res.headers.get('Content-Length')) || 0;
-
-          if(!res.body || !('getReader' in res.body) || total === 0){
-            fill.classList.add('indet'); // サイズ不明 → 不確定アニメ
-            return;
-          }
-
-          const rdr = res.body.getReader();
-          const pump = () => rdr.read().then(({done,value})=>{
-            if(done){
-              fill.style.width = "100%";
-              txt.textContent = `${getMsg('eta')}: 0s`;
-              onComplete && onComplete(); // ダウンロード完了通知
-              return;
-            }
-            loaded += value.byteLength;
-            const dt = (performance.now() - started)/1000;
-            const speed = loaded / Math.max(dt, 0.001);
-            const remain = Math.max(total - loaded, 0);
-            const eta = remain / Math.max(speed, 1);
-            const pct = Math.min(100, Math.round(loaded/total*100));
-            fill.style.width = pct + "%";
-            txt.textContent = `${getMsg('eta')}: ${formatEta(eta)}`;
-            return pump();
-          });
-          return pump();
-        })
-        .catch(()=>{ /* 無視（再試行側で対応） */ });
-    }
-    function stopEta(){
-      if(etaAbort){ try{ etaAbort.abort(); }catch{} etaAbort = null; }
-      document.getElementById(ETA_ROW_ID).hidden = true;
-      const fill = document.getElementById(ETA_FILL_ID);
-      fill.classList.remove('indet'); fill.style.width = "0%";
-    }
-    function formatEta(sec){
-      if(!isFinite(sec) || sec <= 0) return "0s";
-      if(sec < 60) return `${Math.ceil(sec)}s`;
-      const m = Math.floor(sec/60), s = Math.ceil(sec%60);
-      return `${m}m ${s}s`;
-    }
-
-    // ===== Preview + Auto Recovery =====
-    function previewWithAutoRecovery(lang){
-      const iframe = document.getElementById(PREVIEW_ID);
-      const pdfUrl = buildUrl(lang);
-      let viewUrl = primaryViewer(lang);
-      let attempt = 0;
-
-      const loadOnce = (changeViewer=false) => new Promise(resolve=>{
-        setStatus(getMsg("loading"), { persist:true });
-        stopEta();
-
-        let graceTimer = null;
-        startEta(pdfUrl, () => {
-          graceTimer = setTimeout(()=>{
-            resolve({ ok:false, reason:"render-stall" });
-          }, RENDER_GRACE_SEC * 1000);
-        });
-
-        const t0 = performance.now();
-        const onLoad = () => {
-          if(graceTimer) clearTimeout(graceTimer);
-          const dur = ((performance.now()-t0)/1000).toFixed(1);
-          setStatus(getMsg("showing")(lang, dur), { persist:false, clearAfter:4000 });
-          stopEta();
-          cleanup();
-          resolve({ ok:true });
-        };
-        const onError = () => {
-          if(graceTimer) clearTimeout(graceTimer);
-          stopEta();
-          cleanup();
-          resolve({ ok:false, reason:"error" });
-        };
-        function cleanup(){
-          iframe.removeEventListener("load", onLoad);
-          iframe.removeEventListener("error", onError);
-        }
-
-        iframe.addEventListener("load", onLoad);
-        iframe.addEventListener("error", onError);
-
-        if(changeViewer){ viewUrl = fallbackViewer(lang, viewUrl); }
-
-        // iOSは about:blank を挟まず、referrerpolicy も外す
-        const targetUrl = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
-        if (isIOS()){
-          iframe.removeAttribute('referrerpolicy');
-          iframe.src = targetUrl;
-          iframe.title = getMsg("title");
-        } else {
-          iframe.src = "about:blank";
-          requestAnimationFrame(()=>{
-            iframe.src = targetUrl;
-            iframe.title = getMsg("title");
-          });
-        }
-      });
-
-      const run = () => {
-        loadOnce(false).then(r=>{
-          if(r.ok) return;
-          attempt++;
-          if(attempt >= MAX_RENDER_RETRY){
-            stopEta();
-            setStatus(getMsg("fail"), { persist:true });
-            return;
-          }
-          const change = (attempt >= 2);
-          setTimeout(()=> runAttempt(change), 500);
-        });
+    // 補助: 簡易フラグ（地域コードが無い言語は近似）。問題があれば空文字でも可。
+    function flagEmoji(code) {
+      const map = {
+        en:'GB', ja:'JP', de:'DE', fr:'FR', es:'ES', it:'IT', pt:'PT',
+        ru:'RU', zh:'CN', ko:'KR', ar:'SA', hi:'IN', tr:'TR'
       };
-      const runAttempt = (changeViewer) => {
-        loadOnce(changeViewer).then(r=>{
-          if(r.ok) return;
-          attempt++;
-          if(attempt >= MAX_RENDER_RETRY){
-            stopEta();
-            setStatus(getMsg("fail"), { persist:true });
-            return;
-          }
-          const nextChange = (attempt >= 2);
-          setTimeout(()=> runAttempt(nextChange), 700);
-        });
-      };
-
-      run();
+      const cc = map[code];
+      return cc ? ccToFlag(cc) : '';
     }
-
-    // ===== Helpers =====
-    function getMsg(key){
-      const lang = getSelectedLang();
-      return (I18N[lang] || I18N.en)[key] || I18N.en[key];
-    }
-    function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
-
-    function isIOS(){
-      const ua = navigator.userAgent || navigator.vendor || "";
-      const iOS = /iPad|iPhone|iPod/.test(ua);
-      const iPadOS13Plus = (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      return iOS || iPadOS13Plus;
-    }
-    function isAndroid(){
-      const ua = navigator.userAgent || navigator.vendor || "";
-      return /Android/i.test(ua);
+    function ccToFlag(cc) {
+      return String.fromCodePoint(...cc.toUpperCase().split('').map(c => 0x1F1E6 + (c.charCodeAt(0) - 65)));
     }
   </script>
 </body>
