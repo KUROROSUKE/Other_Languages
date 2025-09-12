@@ -2,356 +2,304 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <title>Language</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Multi-language PDF Preview</title>
+  <meta name="description" content="Brochure of Teramachi temples in some Languages." />
   <style>
-    :root{ --bg:#0b0f14; --panel:#121821; --muted:#9fb0c3; --text:#e8eef6; --primary:#3aa0ff; }
-    *{ box-sizing:border-box; margin:0; padding:0; }
-    html, body{
-      height:100%; width:100%; overflow:hidden;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans", sans-serif;
-      background:var(--bg); color:var(--text);
-      display:flex; flex-direction:column;
-    }
-    header{
-      flex:0 0 auto; padding:10px 16px; background:var(--panel); border-bottom:1px solid #1b2a3f;
-      display:flex; justify-content:center; align-items:center;
-    }
-    select{
-      appearance:none; background:#0d141e; border:1px solid #24344d; border-radius:8px; color:#e8eef6;
-      font-size:14px; padding:6px 10px; width:240px;
-      text-align:left; text-align-last:left; direction:ltr;
-    }
-    .eta{
-      flex:0 0 auto; display:flex; align-items:center; gap:10px;
-      padding:8px 16px; background:#0d141e; border-bottom:1px solid #1b2a3f;
-    }
-    .bar{ position:relative; flex:1; height:10px; background:#203046; border-radius:999px; overflow:hidden }
-    .fill{ position:absolute; inset:0 auto 0 0; width:0%; background:var(--primary); transition:width .2s linear }
-    .indet{
-      background:linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
-      background-size:200% 100%; animation:move 1.2s linear infinite; width:40%;
-    }
-    @keyframes move{ from{ transform:translateX(-50%) } to{ transform:translateX(150%) } }
-    .etatext{ width:160px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; font-size:12px }
-    .eta[hidden]{ display:none }
-    main{ flex:1 1 auto; display:flex; flex-direction:column; min-height:0; }
-    iframe{ flex:1; width:100%; height:100%; border:0; background:#0b111a; display:block; }
-    footer{
-      flex:0 0 auto; padding:10px 16px; background:var(--panel); border-top:1px solid #1b2a3f;
-      font-size:13px; color:var(--muted);
-    }
-    .altlink{ margin-left:8px; color:#7fb7ff; text-decoration:underline; }
+    :root { --gap:12px; --radius:14px; --pad:14px; --hi:#f0f7ff; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif; margin:16px; }
+    /* 確認カード */
+    .card { border:1px solid #e2e2e2; border-radius:12px; padding:20px; max-width:420px; margin:18vh auto 0; text-align:center; }
+    .q { font-size:1.05rem; margin:0 0 12px; }
+    .btns { display:flex; gap:12px; justify-content:center; }
+    .btn { padding:10px 16px; border-radius:10px; border:1px solid #d0d0d0; background:#fff; cursor:pointer; font:inherit; }
+    .btn.primary { background:#111; color:#fff; border-color:#111; }
+    /* 手動選択UI */
+    header { margin:0 0 12px; }
+    h1 { font-size:1.1rem; margin:0; }
+    .grid { display:grid; grid-template-columns:1fr; gap:var(--gap); max-height:calc(100vh - 80px); overflow-y:auto; padding:2px; }
+    @media (min-width:640px){ .grid{ grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); max-height:none; } }
+    .lang { display:flex; align-items:center; justify-content:space-between; padding:var(--pad); border:1px solid #e2e2e2; border-radius:var(--radius); background:#fff; text-decoration:none; color:inherit; min-height:56px; }
+    .lang.highlight { background:var(--hi); border-color:#b6d7ff; }
+    .lang:focus { outline:2px solid #111; outline-offset:2px; }
+    .name { font-size:1rem; }
+    .right { display:flex; gap:8px; align-items:center; }
+    .badge { font-size:.7rem; color:#1a1a1a; background:#e9eef5; border-radius:999px; padding:2px 8px; }
+    .flag { width:22px; height:16px; border:1px solid #ddd; border-radius:2px; object-fit:cover; display:none; }
+    .flag.show { display:inline-block; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
-  <header>
-    <select id="lang_selection">
-      <option value="en" selected>🇺🇸 English</option>
-      <option value="ja">🇯🇵 日本語</option>
-      <option value="de">🇩🇪 Deutsch</option>
-      <option value="fr">🇫🇷 Français</option>
-      <option value="es">🇪🇸 Español</option>
-      <option value="pt">🇵🇹 Português</option>
-      <option value="it">🇮🇹 Italiano</option>
-      <option value="ru">🇷🇺 Русский</option>
-      <option value="ar">🇸🇦 العربية</option>
-      <option value="hi">🇮🇳 हिन्दी</option>
-      <option value="cn">🇨🇳 简体中文</option>
-      <option value="tw">🇹🇼 繁體中文</option>
-      <option value="ko">🇰🇷 한국어</option>
-    </select>
-  </header>
-
-  <div id="etaRow" class="eta" hidden>
-    <div class="bar"><div id="etaFill" class="fill"></div></div>
-    <div id="etaText" class="etatext">—</div>
+  <!-- 自動確認画面 -->
+  <div id="confirm" class="card hidden" role="dialog" aria-modal="true">
+    <p id="q" class="q">この言語で表示しますか？</p>
+    <div class="btns">
+      <button id="yes" class="btn primary" type="button">はい</button>
+      <button id="no" class="btn" type="button">いいえ</button>
+    </div>
   </div>
 
-  <main>
-    <iframe id="preview" title="PDF Preview"></iframe>
-  </main>
-
-  <footer id="statusText">No file loaded</footer>
+  <!-- 手動選択画面 -->
+  <header id="manual-head" class="hidden">
+    <h1 id="title">言語を選択</h1>
+  </header>
+  <nav class="grid hidden" id="lang-grid" aria-label="言語一覧"></nav>
 
   <script>
-    const BASE_URL = "https://kurorosuke.github.io/Other_Languages/pdf";
-    const PREVIEW_ID = "preview";
-    const STATUS_ID = "statusText";
-    const SELECT_ID = "lang_selection";
-    const ETA_ROW_ID = "etaRow";
-    const ETA_FILL_ID = "etaFill";
-    const ETA_TEXT_ID = "etaText";
-
-    const I18N = {
-      en:{idle:"No file loaded",loading:"Loading…",showing:(l,t)=>`Showing ${l}.pdf${t?` • ${t}s`:''}`,fail:"Load failed. Please try again.",title:"PDF Preview",eta:"ETA", open:"Open in new tab"},
-      ja:{idle:"ファイル未読み込み",loading:"読み込み中…",showing:(l,t)=>`表示中 ${l}.pdf${t?` ・${t}秒`:''}`,fail:"読み込みに失敗しました。再度お試しください。",title:"PDFプレビュー",eta:"残り", open:"別タブで開く"},
-      de:{idle:"Keine Datei geladen",loading:"Laden…",showing:(l,t)=>`Wird angezeigt: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Laden fehlgeschlagen. Bitte erneut versuchen.",title:"PDF-Vorschau",eta:"Rest", open:"In neuem Tab"},
-      fr:{idle:"Aucun fichier chargé",loading:"Chargement…",showing:(l,t)=>`Affichage : ${l}.pdf${t?` • ${t}s`:''}`,fail:"Échec du chargement. Réessayez.",title:"Aperçu PDF",eta:"Reste", open:"Ouvrir dans un onglet"},
-      es:{idle:"Ningún archivo cargado",loading:"Cargando…",showing:(l,t)=>`Mostrando: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Error de carga. Inténtalo de nuevo.",title:"Vista previa PDF",eta:"Faltan", open:"Abrir en pestaña"},
-      pt:{idle:"Nenhum arquivo carregado",loading:"Carregando…",showing:(l,t)=>`Exibindo: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Falha ao carregar. Tente novamente.",title:"Pré-visualização PDF",eta:"Restante", open:"Abrir em aba"},
-      it:{idle:"Nessun file caricato",loading:"Caricamento…",showing:(l,t)=>`In visualizzazione: ${l}.pdf${t?` • ${t}s`:''}`,fail:"Caricamento non riuscito. Riprova.",title:"Anteprima PDF",eta:"Rimanente", open:"Apri nuova scheda"},
-      ru:{idle:"Файл не загружен",loading:"Загрузка…",showing:(l,t)=>`Отображается: ${l}.pdf${t?` • ${t}с`:''}`,fail:"Не удалось загрузить. Повторите попытку.",title:"Предпросмотр PDF",eta:"Осталось", open:"Открыть во вкладке"},
-      ar:{idle:"لا ملف محمّل",loading:"جارٍ التحميل…",showing:(l,t)=>`يُعرض: ‎${l}.pdf${t?` • ${t}ث`:''}`,fail:"فشل التحميل. حاول مجدداً.",title:"معاينة PDF",eta:"المتبقي", open:"فتح في تبويب"},
-      hi:{idle:"कोई फ़ाइल लोड नहीं",loading:"लोड हो रहा है…",showing:(l,t)=>`दिखा रहा है: ${l}.pdf${t?` • ${t}सेकंड`:''}`,fail:"लोड विफल। पुनः प्रयास करें।",title:"PDF पूर्वावलोकन",eta:"शेष", open:"नए टैब में खोलें"},
-      cn:{idle:"未加载文件",loading:"正在加载…",showing:(l,t)=>`正在显示：${l}.pdf${t?` • ${t}秒`:''}`,fail:"加载失败。请重试。",title:"PDF 预览",eta:"剩余", open:"在新标签页打开"},
-      tw:{idle:"未載入檔案",loading:"載入中…",showing:(l,t)=>`顯示中：${l}.pdf${t?` • ${t}秒`:''}`,fail:"載入失敗。請再試一次。",title:"PDF 預覽",eta:"剩餘", open:"在新分頁開啟"},
-      ko:{idle:"파일 미로드",loading:"불러오는 중…",showing:(l,t)=>`표시 중: ${l}.pdf${t?` • ${t}초`:''}`,fail:"로드 실패. 다시 시도하세요.",title:"PDF 미리보기",eta:"남음", open:"새 탭에서 열기"},
+    const DEFAULT_FALLBACK = 'en-us';
+    const PDF = code => `pdf/${code}.pdf`;
+    // 言語ラインナップ（必要に応じて調整しとく。下のやつも変えないとUIはDEFAULT_FALLBACKの言語になる。）
+    const LANGS = [
+      {code:'en-us', name:'English (US)', cc:'US'},
+      {code:'en-gb', name:'English (UK)', cc:'GB'},
+      {code:'zh-cn', name:'简体中文', cc:'CN'},
+      {code:'zh-tw', name:'繁體中文', cc:'TW'},
+      {code:'ja',    name:'日本語',    cc:'JP'},
+      {code:'ko',    name:'한국어',    cc:'KR'},
+      {code:'de',    name:'Deutsch',  cc:'DE'},
+      {code:'fr',    name:'Français', cc:'FR'},
+      {code:'es-es', name:'Español (ES)', cc:'ES'},
+      {code:'es-mx', name:'Español (MX)', cc:'MX'},
+      {code:'pt-br', name:'Português (BR)', cc:'BR'},
+      {code:'ru',    name:'Русский',  cc:'RU'},
+      {code:'it',    name:'Italiano', cc:'IT'},
+    ];
+    // ブラウザ標準言語で聞く
+    const UI_CONFIRM = {
+      'en-us': 'Display in English (US)?',
+      'en-gb': 'Display in English (UK)?',
+      'zh-cn': '使用简体中文显示？',
+      'zh-tw': '使用繁體中文顯示？',
+      'ja':    '日本語で表示しますか？',
+      'ko':    '한국어로 표시할까요?',
+      'de':    'Auf Deutsch anzeigen?',
+      'fr':    'Afficher en français ?',
+      'es-es': '¿Mostrar en español (ES)?',
+      'es-mx': '¿Mostrar en español (MX)?',
+      'pt-br': 'Exibir em português (BR)?',
+      'ru':    'Показать на русском?',
+      'it':    'Mostrare in italiano?'
+    };
+    const YES_NO = {
+      'en-us':{yes:'Yes', no:'No'},
+      'en-gb':{yes:'Yes', no:'No'},
+      'zh-cn':{yes:'是', no:'否'},
+      'zh-tw':{yes:'是', no:'否'},
+      'ja':{yes:'はい', no:'いいえ'},
+      'ko':{yes:'예', no:'아니오'},
+      'de':{yes:'Ja', no:'Nein'},
+      'fr':{yes:'Oui', no:'Non'},
+      'es-es':{yes:'Sí', no:'No'},
+      'es-mx':{yes:'Sí', no:'No'},
+      'pt-br':{yes:'Sim', no:'Não'},
+      'ru':{yes:'Да', no:'Нет'},
+      'it':{yes:'Sì', no:'No'}
+    };
+    // ?manual=1 のときの一番上。
+    const UI_TITLE = {
+      'en-us':'Choose your language',
+      'en-gb':'Choose your language',
+      'zh-cn':'选择语言',
+      'zh-tw':'選擇語言',
+      'ja':'言語を選択',
+      'ko':'언어 선택',
+      'de':'Sprache wählen',
+      'fr':'Choisissez votre langue',
+      'es-es':'Elige tu idioma',
+      'es-mx':'Elige tu idioma',
+      'pt-br':'Escolha o idioma',
+      'ru':'Выберите язык',
+      'it':'Scegli la lingua'
+    };
+    // ?manual=1 のときの「おすすめ」の文字。
+    const SUGGESTED = {
+      'en-us':'Suggested',
+      'en-gb':'Suggested',
+      'zh-cn':'推荐',
+      'zh-tw':'推薦',
+      'ja':'おすすめ',
+      'ko':'추천',
+      'de':'Empfohlen',
+      'fr':'Recommandé',
+      'es-es':'Recomendado',
+      'es-mx':'Recomendado',
+      'pt-br':'Sugerido',
+      'ru':'Рекомендуемое',
+      'it':'Consigliato'
+    };
+    const UI_ARIA_LABEL = {
+      'en-us': 'Open PDF in a new tab',
+      'en-gb': 'Open PDF in a new tab',
+      'zh-cn': '在新标签页中打开 PDF',
+      'zh-tw': '在新分頁中開啟 PDF',
+      'ja':    'PDFを新しいタブで開く',
+      'ko':    '새 탭에서 PDF 열기',
+      'de':    'PDF in neuem Tab öffnen',
+      'fr':    'Ouvrir le PDF dans un nouvel onglet',
+      'es-es': 'Abrir el PDF en una nueva pestaña',
+      'es-mx': 'Abrir el PDF en una nueva pestaña',
+      'pt-br': 'Abrir o PDF em uma nova guia',
+      'ru':    'Открыть PDF в новой вкладке',
+      'it':    'Apri il PDF in una nuova scheda'
     };
 
-    const RENDER_GRACE_SEC = 2;          // ダウンロード完了→描画猶予
-    const NAV_GRACE_SEC    = 3;          // ダウンロード不明(gview等)→ナビ猶予
-    const MAX_RENDER_RETRY = 3;          // 自動再試行
-    const PREFLIGHT_STALL_MS = 2000;     // 最初のバイト猶予
 
-    // status
-    let __statusTimer = null;
-    function setStatus(text, { persist = false, clearAfter = 4000, withAltLink = null } = {}) {
-      const el = document.getElementById(STATUS_ID);
-      el.textContent = text;
-      if (withAltLink){
+    // 起動
+    (function main(){
+      const manual = new URLSearchParams(location.search).get('manual') === '1';
+      const suggested = suggestLangByDevice(LANGS.map(l=>l.code), DEFAULT_FALLBACK);
+
+      if (!manual) { // ?manual=1 を boolean で検出。ほんとはあんまりよくないかも。
+        // 確認ダイアログを検出言語で表示
+        showConfirm(suggested);
+      } else {
+        // 手動選択UI
+        document.documentElement.lang = suggested || DEFAULT_FALLBACK;
+        applyRtlIfNeeded(suggested); // 右から左の言語に対応
+        localizeTitle(suggested); //「言語選択」（タイトル）を訳す
+        const ordered = orderCodes(suggested); // 推奨言語を一番上に持ってくる
+        buildGrid(ordered, suggested);
+        show(byId('manual-head'));
+        show(byId('lang-grid'));
+        scrollToLang(suggested);
+      }
+    })();
+
+    // ===== 自動確認 =====
+    function showConfirm(code){
+      const lang = codeToLang(code) || {name: code, code}; // 言語の正式名称を取得
+      const question_title = UI_CONFIRM[code] || UI_CONFIRM[DEFAULT_FALLBACK];
+      const yesno = YES_NO[code] || YES_NO[DEFAULT_FALLBACK];
+    
+      // ページの種類を ja からその国の言語にして、右から左にも対応する
+      document.documentElement.lang = lang.code || 'en';
+      applyRtlIfNeeded(lang.code);
+    
+      byId('q').textContent = question_title;
+      byId('q').setAttribute('aria-label', question_title);
+      byId('yes').textContent = yesno.yes;
+      byId('no').textContent  = yesno.no;
+    
+      show(byId('confirm'));
+    
+      byId('yes').onclick = () => window.location.replace(PDF(lang.code));
+      byId('no').onclick  = () => window.location.href = '?manual=1';
+    }
+
+    // ===== 手動UI =====
+    // 表示する言語の並び替え（?manual=1 のとき）
+    function orderCodes(suggested){
+      const rest = LANGS.map(l=>l.code).filter(c => c !== suggested);
+      return [suggested, ...rest];
+    }
+    function buildGrid(codes, highlightCode){
+      const grid = byId('lang-grid');
+      grid.innerHTML = '';
+      codes.forEach(code => {
+        const l = codeToLang(code);
         const a = document.createElement('a');
-        a.href = withAltLink; a.target = '_blank'; a.rel = 'noopener noreferrer';
-        a.textContent = ` (${getMsg('open')})`;
-        a.className = 'altlink';
-        el.appendChild(a);
-      }
-      if (__statusTimer) { clearTimeout(__statusTimer); __statusTimer = null; }
-      if (!persist) {
-        __statusTimer = setTimeout(() => {
-          if (el.textContent.startsWith(text)) el.textContent = "";
-        }, clearAfter);
-      }
-    }
+        a.href = PDF(l.code);
+        a.target = '_blank'; // 手動は新規タブで開く
+        a.rel = 'noopener';
+        a.className = 'lang' + (code === highlightCode ? ' highlight' : '');
+        a.setAttribute('role','button');
+        a.setAttribute('aria-label', UI_ARIA_LABEL[code] || UI_ARIA_LABEL[DEFAULT_FALLBACK]);
+        a.id = `lang-${l.code}`;
 
-    document.getElementById(SELECT_ID).addEventListener("change", () => {
-      previewWithAutoRecovery(getSelectedLang());
-    });
-    window.addEventListener("DOMContentLoaded", () => {
-      document.getElementById(SELECT_ID).value = "en";
-      previewWithAutoRecovery("en");
-    });
+        const left = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = l.name;
+        left.appendChild(name);
 
-    function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
-    function buildUrl(lang){ return `${BASE_URL}/${lang}.pdf`; }
+        const right = document.createElement('div');
+        right.className = 'right';
 
-    // Android: gview → viewerng → pdf
-    // iOS: viewerng → gview → pdf
-    // PC: pdf → gview → viewerng
-    function primaryViewer(lang){
-      const pdf      = buildUrl(lang);
-      const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
-      const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
-      if (isAndroid()) return gview;
-      if (isIOS())     return viewerng;
-      return pdf;
-    }
-    function fallbackViewer(lang, currentUrl){
-      const pdf      = buildUrl(lang);
-      const gview    = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdf)}`;
-      const viewerng = `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdf)}`;
-      const isGview   = currentUrl?.startsWith("https://docs.google.com/gview?");
-      const isViewerN = currentUrl?.startsWith("https://drive.google.com/viewerng/");
-      const isPdf     = currentUrl && !isGview && !isViewerN;
-
-      if (isAndroid()){
-        if (isGview)   return viewerng;  // gview→viewerng
-        if (isViewerN) return pdf;       // viewerng→pdf
-        return gview;                    // pdf→gview
-      }
-      if (isIOS()){
-        if (isViewerN) return gview;     // viewerng→gview
-        if (isGview)   return pdf;       // gview→pdf
-        return viewerng;                 // pdf→viewerng
-      }
-      // PC
-      if (isPdf)     return gview;       // pdf→gview
-      if (isGview)   return viewerng;    // gview→viewerng
-      return pdf;                        // viewerng→pdf
-    }
-
-    // preflight
-    async function preflight(url){
-      try{
-        const h = await fetch(url, { method:"HEAD", cache:"no-store" });
-        if (!h.ok) return { ok:false, reason:`head-${h.status}` };
-      }catch{ return { ok:false, reason:"head-net" }; }
-      try{
-        const ctrl = new AbortController();
-        const t = setTimeout(()=>ctrl.abort(), PREFLIGHT_STALL_MS);
-        const r = await fetch(url, { headers:{ Range:"bytes=0-0" }, cache:"no-store", signal:ctrl.signal });
-        clearTimeout(t);
-        if (!r.ok && r.status !== 206) return { ok:false, reason:`range-${r.status}` };
-      }catch{ return { ok:false, reason:"range-net" }; }
-      return { ok:true };
-    }
-
-    // ETA
-    let etaAbort = null;
-    function startEta(url, onComplete){
-      const row  = document.getElementById(ETA_ROW_ID);
-      const fill = document.getElementById(ETA_FILL_ID);
-      const txt  = document.getElementById(ETA_TEXT_ID);
-      row.hidden = false; fill.classList.remove('indet'); fill.style.width = "0%";
-      txt.textContent = `${getMsg('eta')}: …`;
-
-      etaAbort = new AbortController();
-      const started = performance.now();
-      let loaded = 0, total = 0;
-
-      fetch(url, { signal: etaAbort.signal, cache:"no-store" })
-        .then(res => {
-          if(!res.ok) throw new Error("fetch");
-          total = Number(res.headers.get('Content-Length')) || 0;
-          if(!res.body || !('getReader' in res.body) || total === 0){
-            fill.classList.add('indet'); // サイズ不明
-            return;
-          }
-          const rdr = res.body.getReader();
-          const pump = () => rdr.read().then(({done,value})=>{
-            if(done){
-              fill.style.width = "100%";
-              txt.textContent = `${getMsg('eta')}: 0s`;
-              onComplete && onComplete();
-              return;
-            }
-            loaded += value.byteLength;
-            const dt = (performance.now() - started)/1000;
-            const speed = loaded / Math.max(dt, 0.001);
-            const remain = Math.max(total - loaded, 0);
-            const eta = remain / Math.max(speed, 1);
-            const pct = Math.min(100, Math.round(loaded/total*100));
-            fill.style.width = pct + "%";
-            txt.textContent = `${getMsg('eta')}: ${formatEta(eta)}`;
-            return pump();
-          });
-          return pump();
-        })
-        .catch(()=>{});
-    }
-    function stopEta(){
-      if(etaAbort){ try{ etaAbort.abort(); }catch{} etaAbort = null; }
-      document.getElementById(ETA_ROW_ID).hidden = true;
-      const fill = document.getElementById(ETA_FILL_ID);
-      fill.classList.remove('indet'); fill.style.width = "0%";
-    }
-    function formatEta(sec){
-      if(!isFinite(sec) || sec <= 0) return "0s";
-      if(sec < 60) return `${Math.ceil(sec)}s`;
-      const m = Math.floor(sec/60), s = Math.ceil(sec%60);
-      return `${m}m ${s}s`;
-    }
-
-    // preview + auto-recovery with dual watchdog
-    function previewWithAutoRecovery(lang){
-      const iframe = document.getElementById(PREVIEW_ID);
-      const pdfUrl = buildUrl(lang);
-      let viewUrl = primaryViewer(lang);
-      let attempt = 0;
-
-      const loadOnce = (changeViewer=false) => new Promise(async resolve=>{
-        setStatus(getMsg("loading"), { persist:true });
-
-        const pf = await preflight(pdfUrl);
-        if (!pf.ok){ return resolve({ ok:false, reason:`preflight-${pf.reason}` }); }
-
-        stopEta();
-        let renderTimer = null;    // ダウンロード後ウォッチ
-        let navTimer    = null;    // ナビゲーションのみウォッチ（gview等サイズ不明ケース）
-
-        // gview / viewerng はサイズ不明が多いのでナビ用ウォッチを併用
-        const isExternalViewer = (u)=> u.includes("google.com/gview") || u.includes("drive.google.com/viewerng");
-
-        startEta(pdfUrl, () => {
-          renderTimer = setTimeout(()=>{ resolve({ ok:false, reason:"render-stall" }); }, RENDER_GRACE_SEC * 1000);
-        });
-
-        const t0 = performance.now();
-        const onLoad = () => {
-          if(renderTimer) clearTimeout(renderTimer);
-          if(navTimer)    clearTimeout(navTimer);
-          const dur = ((performance.now()-t0)/1000).toFixed(1);
-          setStatus(getMsg("showing")(lang, dur), { persist:false, clearAfter:4000 });
-          stopEta(); cleanup(); resolve({ ok:true });
-        };
-        const onError = () => {
-          if(renderTimer) clearTimeout(renderTimer);
-          if(navTimer)    clearTimeout(navTimer);
-          stopEta(); cleanup(); resolve({ ok:false, reason:"error" });
-        };
-        function cleanup(){
-          iframe.removeEventListener("load", onLoad);
-          iframe.removeEventListener("error", onError);
-        }
-        iframe.addEventListener("load", onLoad);
-        iframe.addEventListener("error", onError);
-
-        if(changeViewer){ viewUrl = fallbackViewer(lang, viewUrl); }
-        const targetUrl = `${viewUrl}${viewUrl.includes("?") ? "&" : "?"}v=${Date.now().toString(36)}`;
-
-        // ナビウォッチ開始（外部ビューワ時のみ）
-        if (isExternalViewer(viewUrl)){
-          navTimer = setTimeout(()=>{ resolve({ ok:false, reason:"nav-stall" }); }, NAV_GRACE_SEC * 1000);
+        if (code === highlightCode) {
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.textContent = SUGGESTED[highlightCode];
+          right.appendChild(badge);
         }
 
-        if (isIOS()){
-          iframe.src = targetUrl;
-          iframe.title = getMsg("title");
-        } else {
-          iframe.src = "about:blank";
-          requestAnimationFrame(()=>{
-            iframe.src = targetUrl;
-            iframe.title = getMsg("title");
-          });
+        const img = document.createElement('img');
+        img.className = 'flag'; // 本当の意味のflag
+        img.alt = '';
+        if (l.cc) {
+          img.src = `countries_img/${l.cc}.svg`; // 任意で配置。なくても動くからまぁなくてもいい。
+          img.onload = () => img.classList.add('show'); // てか重くなるからないほうがいい説まである。
         }
+        right.appendChild(img);
+
+        a.appendChild(left);
+        a.appendChild(right);
+        grid.appendChild(a);
       });
-
-      const run = () => {
-        loadOnce(false).then(r=>{
-          if(r.ok) return;
-          attempt++;
-          if(attempt >= MAX_RENDER_RETRY){
-            stopEta();
-            setStatus(getMsg("fail"), { persist:true, withAltLink: buildUrl(lang) });
-            return;
-          }
-          const change = (attempt >= 2);
-          setTimeout(()=> runAttempt(change), 400);
-        });
-      };
-      const runAttempt = (changeViewer) => {
-        loadOnce(changeViewer).then(r=>{
-          if(r.ok) return;
-          attempt++;
-          if(attempt >= MAX_RENDER_RETRY){
-            stopEta();
-            setStatus(getMsg("fail"), { persist:true, withAltLink: buildUrl(lang) });
-            return;
-          }
-          const nextChange = (attempt >= 2);
-          setTimeout(()=> runAttempt(nextChange), 600);
-        });
-      };
-
-      run();
     }
 
-    // helpers
-    function getMsg(key){
-      const lang = getSelectedLang();
-      return (I18N[lang] || I18N.en)[key] || I18N.en[key];
+    // ===== 言語推定 =====
+    function suggestLangByDevice(catalogCodes, fallback='en-us'){
+      const cands = getBrowserLangCandidates();
+      for (const c of cands){
+        const hit = normalizeToCatalog(catalogCodes, c);
+        if (hit) return hit; // null ではないときとも言える。
+      }
+      return catalogCodes.includes(fallback) ? fallback : catalogCodes[0];
     }
-    function getSelectedLang(){ return document.getElementById(SELECT_ID).value; }
-    function isIOS(){
-      const ua = navigator.userAgent || navigator.vendor || "";
-      const iOS = /iPad|iPhone|iPod/.test(ua);
-      const iPadOS13Plus = (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      return iOS || iPadOS13Plus;
+    function getBrowserLangCandidates(){
+      const langs = Array.isArray(navigator.languages) && navigator.languages.length // navigator.languages が、利用者の言語一覧
+        ? navigator.languages : []; // あるならその配列を代入、ないなら空。
+      const lower = langs.map(l => String(l || '').toLowerCase());
+      const shorts = lower.map(l => l.split('-')[0]);
+      return [...new Set([...lower, ...shorts])];
     }
-    function isAndroid(){
-      const ua = navigator.userAgent || navigator.vendor || "";
-      return /Android/i.test(ua);
+    function normalizeToCatalog(catalogCodes, lcand){
+      const set = new Set(catalogCodes);
+      const lc = String(lcand).toLowerCase();
+      if (set.has(lc)) return lc;
+      const base = lc.split('-')[0];
+
+      if (base === 'en') {
+        if (/-gb$/.test(lc) && set.has('en-gb')) return 'en-gb';
+        if (/-us$/.test(lc) && set.has('en-us')) return 'en-us';
+        if (set.has('en-us')) return 'en-us';
+        if (set.has('en-gb')) return 'en-gb';
+      }
+      if (base === 'zh') {
+        if ((/tw|hk|mo/).test(lc) && set.has('zh-tw')) return 'zh-tw';
+        if (set.has('zh-cn')) return 'zh-cn';
+      }
+      if (base === 'es') {
+        if ((/mx|419/).test(lc) && set.has('es-mx')) return 'es-mx';
+        if (set.has('es-es')) return 'es-es';
+      }
+      if (base === 'pt') {
+        if ((/br/).test(lc) && set.has('pt-br')) return 'pt-br';
+        if (set.has('pt-pt')) return 'pt-pt';
+      }
+      return set.has(base) ? base : null;
     }
+
+    // ===== UIユーティリティ =====
+    function localizeTitle(code){
+      const t = UI_TITLE[code] || UI_TITLE[DEFAULT_FALLBACK];
+      byId('title').textContent = t;
+    }
+    function applyRtlIfNeeded(code){
+      // アラビア語などの右→左言語を追加する場合はここで判定して dir=rtl を適用
+      document.documentElement.dir = 'ltr';
+      if (code.startsWith('ar')) document.documentElement.dir = 'rtl'; //アラビア語
+    }
+
+    // ===== 汎用 =====
+    function scrollToLang(code){
+      const el = byId(`lang-${code}`);
+      if (el) el.scrollIntoView({ block:'center' });
+    }
+    function byId(id){ return document.getElementById(id); }
+    function codeToLang(code){ return LANGS.find(l => l.code === code); }
+    function show(el){ el.classList.remove('hidden'); }
   </script>
 </body>
-</html>
