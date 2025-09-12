@@ -68,11 +68,19 @@
 
     // UIテキスト（タイトルと「おすすめ」バッジ、確認ボタン）
     const UI_TITLE = {
-      'en-us':'Choose your language','en-gb':'Choose your language',
-      'zh-cn':'选择语言','zh-tw':'選擇語言',
-      'ja':'言語を選択','ko':'언어 선택',
-      'de':'Sprache wählen','fr':'Choisissez votre langue','es-es':'Elige tu idioma','es-mx':'Elige tu idioma',
-      'pt-br':'Escolha o idioma','ru':'Выберите язык','it':'Scegli la lingua'
+      'en-us':'Choose your language',
+      'en-gb':'Choose your language',
+      'zh-cn':'选择语言',
+      'zh-tw':'選擇語言',
+      'ja':'言語を選択',
+      'ko':'언어 선택',
+      'de':'Sprache wählen',
+      'fr':'Choisissez votre langue',
+      'es-es':'Elige tu idioma',
+      'es-mx':'Elige tu idioma',
+      'pt-br':'Escolha o idioma',
+      'ru':'Выберите язык',
+      'it':'Scegli la lingua'
     };
     const SUGGESTED = {
       'en-us':'Suggested','en-gb':'Suggested',
@@ -89,6 +97,7 @@
       'es-es':{yes:'Sí', no:'No'}, 'es-mx':{yes:'Sí', no:'No'},
       'pt-br':{yes:'Sim', no:'Não'}, 'ru':{yes:'Да', no:'Нет'}, 'it':{yes:'Sì', no:'No'}
     };
+    
 
     // 起動
     (function main(){
@@ -355,12 +364,13 @@
     // ===== 自動確認 =====
     function showConfirm(code){
       const lang = codeToLang(code) || {name: code, code};
+      const confirmTitle = UI_TITLE.lang;
       const yesno = YES_NO[code] || YES_NO[DEFAULT_FALLBACK];
 
       // 右→左言語なら方向を適用（今回は ar なしだが将来に備える）
       applyRtlIfNeeded(code);
 
-      byId('q').textContent = `${lang.name} で表示しますか？`;
+      byId('q').textContent   = confirmTitl;
       byId('yes').textContent = yesno.yes;
       byId('no').textContent  = yesno.no;
 
