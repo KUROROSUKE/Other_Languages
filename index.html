@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Language</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Brochure of Teramachi temples in some Languages." />
   <style>
     :root { --gap:12px; --radius:14px; --pad:14px; --hi:#f0f7ff; }
     * { box-sizing: border-box; }
@@ -177,6 +178,7 @@
       applyRtlIfNeeded(lang.code);
     
       byId('q').textContent = question_title;
+      byId('q').setAttribute('area-label', question_title);
       byId('yes').textContent = yesno.yes;
       byId('no').textContent  = yesno.no;
     
