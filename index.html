@@ -178,10 +178,10 @@
       applyRtlIfNeeded(lang.code);
     
       byId('q').textContent = question_title;
-      byId('q').setAttribute('aria-label', question_title);
       byId('yes').textContent = yesno.yes;
       byId('no').textContent  = yesno.no;
     
+      byId('confirm').setAttribute('aria-label', question_title);
       show(byId('confirm'));
     
       byId('yes').onclick = () => window.location.replace(PDF(lang.code));
